@@ -1,8 +1,10 @@
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+import os
 
-SECRET_KEY = "changethislater"                  # used to sign tokens, keep this secret in production
+# read the secret key from the environment — never hardcode this in production
+SECRET_KEY = os.environ["JWT_SECRET_KEY"]
 ALGORITHM = "HS256"                             # algorithm used to sign the JWT
 ACCESS_TOKEN_EXPIRE_MINUTES = 30                # token expires after 30 minutes
 

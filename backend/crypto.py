@@ -1,6 +1,9 @@
 from cryptography.fernet import Fernet
+import os
 
-ENCRYPTION_KEY = Fernet.generate_key()          # generates a random encryption key on startup
+# read the encryption key from the environment — must be a fixed key so stored passwords
+# can still be decrypted after a server restart (generate_key() would produce a new key every time)
+ENCRYPTION_KEY = os.environ["FERNET_KEY"].encode()
 fernet = Fernet(ENCRYPTION_KEY)                 # creates a Fernet instance using that key
 
 def encrypt_password(plain_password: str) -> str:
