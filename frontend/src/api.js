@@ -1,5 +1,5 @@
 // Base URL of your FastAPI backend
-const BASE = 'http://localhost:8000'
+const BASE = 'https://passwordmanager-owfm.onrender.com'
 
 // Reusable helper — all API functions use this instead of writing fetch() every time 
 async function request(path, options = {}) {   
