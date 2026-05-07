@@ -12,7 +12,10 @@ models.Base.metadata.create_all(bind = engine)                      # create the
 app = FastAPI()                                                     # create the app
 app.add_middleware(     
     CORSMiddleware,                                                 # this tells backend its ok to accept requests from localhost:5172 (react app) otherwise browser would block this
-    allow_origins = ["*"],
+    allow_origins = [
+        "http://localhost:5173",
+        "https://password-manager-five-lake.vercel.app",
+    ],
     allow_credentials = True,
     allow_methods = ["*"],
     allow_headers = ["*"],
