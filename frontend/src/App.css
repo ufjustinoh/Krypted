@@ -282,6 +282,24 @@ button:disabled {
   align-items: center;
 }
 
+/* icon-only button for clipboard */
+.btn-icon {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.btn-icon:hover {
+  color: var(--text-h);
+  background: var(--accent-bg);
+  opacity: 1;
+}
+
 /* password value + show/hide button side by side */
 .password-cell {
   display: flex;
