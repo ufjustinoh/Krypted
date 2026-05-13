@@ -1,9 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { updateMe, changePassword } from '../api'
 
 export default function ProfilePage({ token, user, onUserUpdate }) {
   const [firstName, setFirstName] = useState(user?.first_name || '')
   const [lastName, setLastName] = useState(user?.last_name || '')
+
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.first_name || '')
+      setLastName(user.last_name || '')
+    }
+  }, [user])
   const [profileMsg, setProfileMsg] = useState('')
   const [profileError, setProfileError] = useState('')
   const [profileLoading, setProfileLoading] = useState(false)
