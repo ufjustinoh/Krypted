@@ -211,15 +211,7 @@ export default function Dashboard({ token, onLogout }) {
                       </td>
                       <td className="row-actions">
                         <button className="btn-ghost small" onClick={() => handleEdit(p)}>Edit</button>
-                        {confirmDeleteId === p.id ? (
-                          <>
-                            <span className="confirm-label">Sure?</span>
-                            <button className="btn-danger" onClick={() => { setConfirmDeleteId(null); handleDelete(p.id) }}>Yes</button>
-                            <button className="btn-ghost small" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
-                          </>
-                        ) : (
-                          <button className="btn-danger" onClick={() => setConfirmDeleteId(p.id)}>Delete</button>
-                        )}
+                        <button className="btn-danger" onClick={() => setConfirmDeleteId(p.id)}>Delete</button>
                       </td>
                     </>
                   )}
@@ -229,6 +221,19 @@ export default function Dashboard({ token, onLogout }) {
           </table>
         )}
       </div>
+
+      {confirmDeleteId !== null && (
+        <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Delete password?</h2>
+            <p>This will permanently delete the entry for <strong>{passwords.find(p => p.id === confirmDeleteId)?.site}</strong>. This can't be undone.</p>
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+              <button className="btn-danger" onClick={() => { handleDelete(confirmDeleteId); setConfirmDeleteId(null) }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
