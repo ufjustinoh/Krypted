@@ -23,14 +23,20 @@ function SSOIcon() {
 export default function AuthPage({ onLogin }) {
   const [step, setStep] = useState('email')
   const [mode, setMode] = useState('login')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => localStorage.getItem('rememberedEmail') || '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [rememberEmail, setRememberEmail] = useState(() => !!localStorage.getItem('rememberedEmail'))
 
   function handleContinue(e) {
     e.preventDefault()
     setError('')
+    if (rememberEmail) {
+      localStorage.setItem('rememberedEmail', email)
+    } else {
+      localStorage.removeItem('rememberedEmail')
+    }
     setStep('password')
   }
 
@@ -80,6 +86,14 @@ export default function AuthPage({ onLogin }) {
                 required
                 autoFocus
               />
+              <label className="remember-label">
+                <input
+                  type="checkbox"
+                  checked={rememberEmail}
+                  onChange={e => setRememberEmail(e.target.checked)}
+                />
+                Remember email
+              </label>
               {error && <p className="error">{error}</p>}
               <button type="submit">Continue</button>
             </form>
