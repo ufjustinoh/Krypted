@@ -20,6 +20,14 @@ async function request(path, options = {}) {
 }
 
 // Calls POST /auth/register with email + password
+export function lookupUser(email) {
+    return request('/auth/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+    })
+}
+
 export function register(firstName, lastName, email, password, confirm) {
     return request('/auth/register', {
         method: 'POST',
@@ -73,5 +81,27 @@ export function deletePassword(token, id) {
     return request(`/passwords/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
+    })
+}
+
+export function getMe(token) {
+    return request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+    })
+}
+
+export function updateMe(token, firstName, lastName) {
+    return request('/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ first_name: firstName, last_name: lastName }),
+    })
+}
+
+export function changePassword(token, currentPassword, newPassword, confirm) {
+    return request('/me/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword, confirm }),
     })
 }

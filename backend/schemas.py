@@ -1,11 +1,25 @@
 from pydantic import BaseModel
 
-# used when a user registers, what we expect to receieve from the frontend
 class UserCreate(BaseModel):
     first_name: str
     last_name: str
     email: str
     password: str
+    confirm: str
+
+class UserLookup(BaseModel):
+    email: str
+
+class UserLookupResponse(BaseModel):
+    first_name: str | None
+
+class UserUpdate(BaseModel):
+    first_name: str
+    last_name: str
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
     confirm: str
 
 class UserResponse(BaseModel):

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getPasswords, createPassword, updatePassword, deletePassword } from '../api'
 import AddPasswordPage from './AddPasswordPage'
 import EditPasswordPage from './EditPasswordPage'
+import ProfilePage from './ProfilePage'
 
 function faviconUrl(site) {
   let domain = site.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0]
@@ -13,8 +14,8 @@ function capitalize(str) {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : str
 }
 
-// token is the JWT from login, onLogout is called when the user clicks logout
-export default function Dashboard({ token, onLogout }) {
+export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
+  const [view, setView] = useState('vault')
 
   // the list of saved passwords fetched from the backend
   const [passwords, setPasswords] = useState([])
@@ -135,13 +136,17 @@ export default function Dashboard({ token, onLogout }) {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Password Manager
+          Krypted
         </div>
 
         <nav className="sidebar-nav">
-          <button className="sidebar-item active">
+          <button className={`sidebar-item ${view === 'vault' ? 'active' : ''}`} onClick={() => setView('vault')}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
             Vault
+          </button>
+          <button className={`sidebar-item ${view === 'profile' ? 'active' : ''}`} onClick={() => setView('profile')}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            Profile
           </button>
         </nav>
 
@@ -154,6 +159,10 @@ export default function Dashboard({ token, onLogout }) {
       </aside>
 
       <div className="dashboard-main">
+      {view === 'profile' && (
+        <ProfilePage token={token} user={user} onUserUpdate={onUserUpdate} />
+      )}
+      {view === 'vault' && (<>
       <header className="dashboard-header">
         <h1>Password Vault</h1>
       </header>
@@ -247,6 +256,7 @@ export default function Dashboard({ token, onLogout }) {
           </div>
         </div>
       )}
+      </>)}
       </div>
     </div>
   )

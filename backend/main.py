@@ -72,7 +72,12 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user                                                                                                                                                                                       
    
-@app.post("/auth/login", response_model=schemas.Token)  
+@app.post("/auth/lookup", response_model=schemas.UserLookupResponse)
+def lookup_user(data: schemas.UserLookup, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
+    return {"first_name": user.first_name if user else None}
+
+@app.post("/auth/login", response_model=schemas.Token)
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()                                                                                                                       
     if not db_user or not auth.verify_password(user.password, db_user.password_hash):
@@ -129,14 +134,40 @@ def update_password(entry_id: int, entry: schemas.PasswordEntryUpdate, db: Sessi
     db.refresh(db_entry)
     return {"id": db_entry.id, "site": db_entry.site, "username": entry.username, "password": entry.password}
 
-@app.delete("/passwords/{entry_id}")                                                                                                                                                                      
+@app.delete("/passwords/{entry_id}")
 def delete_password(entry_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    entry = db.query(models.PasswordEntry).filter(                                                                                                                                                        
+    entry = db.query(models.PasswordEntry).filter(
         models.PasswordEntry.id == entry_id,
-        models.PasswordEntry.user_id == current_user.id  # make sure the entry belongs to this user                                                                                                       
-    ).first()                                                                                                                                                                                             
+        models.PasswordEntry.user_id == current_user.id
+    ).first()
     if not entry:
-        raise HTTPException(status_code=404, detail="Entry not found")                                                                                                                                    
-    db.delete(entry)                                                                                                                                                                                      
+        raise HTTPException(status_code=404, detail="Entry not found")
+    db.delete(entry)
     db.commit()
-    return {"message": "Password deleted"}      
+    return {"message": "Password deleted"}
+
+"""
+Profile Routes
+"""
+
+@app.get("/me", response_model=schemas.UserResponse)
+def get_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+@app.put("/me", response_model=schemas.UserResponse)
+def update_me(data: schemas.UserUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    current_user.first_name = data.first_name
+    current_user.last_name = data.last_name
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+@app.put("/me/password")
+def change_password(data: schemas.PasswordChange, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if not auth.verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if data.new_password != data.confirm:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    current_user.password_hash = auth.hash_password(data.new_password)
+    db.commit()
+    return {"message": "Password updated"}

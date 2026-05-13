@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { login, register } from '../api'
+import { login, register, lookupUser } from '../api'
 
 function KeyIcon() {
   return (
@@ -35,19 +35,26 @@ export default function AuthPage({ onLogin }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [rememberEmail, setRememberEmail] = useState(() => !!localStorage.getItem('rememberedEmail'))
+  const [lookedUpName, setLookedUpName] = useState('')
 
   // register-only fields
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [confirm, setConfirm] = useState('')
 
-  function handleContinue(e) {
+  async function handleContinue(e) {
     e.preventDefault()
     setError('')
     if (rememberEmail) {
       localStorage.setItem('rememberedEmail', email)
     } else {
       localStorage.removeItem('rememberedEmail')
+    }
+    try {
+      const { first_name } = await lookupUser(email)
+      setLookedUpName(first_name || '')
+    } catch {
+      setLookedUpName('')
     }
     setStep('password')
   }
@@ -212,7 +219,7 @@ export default function AuthPage({ onLogin }) {
     <div className="auth-page">
       <Navbar />
       <div className="auth-content">
-        <h2 className="auth-heading">Welcome back, {email.split('@')[0]}</h2>
+        <h2 className="auth-heading">Welcome back, {lookedUpName || email.split('@')[0]}</h2>
         <div className="auth-card">
           <button className="auth-back" onClick={goBack}>← Back to Log in</button>
           <form onSubmit={handleLogin}>
