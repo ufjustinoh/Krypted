@@ -45,6 +45,12 @@ function StrengthBar({ password }) {
   )
 }
 
+function randIndex(max) {
+  const buf = new Uint32Array(1)
+  crypto.getRandomValues(buf)
+  return buf[0] % max
+}
+
 function generatePassword(opts) {
   const lower = 'abcdefghijklmnopqrstuvwxyz'
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -56,25 +62,25 @@ function generatePassword(opts) {
 
   if (opts.upper) {
     pool += upper
-    guaranteed.push(upper[Math.floor(Math.random() * upper.length)])
+    guaranteed.push(upper[randIndex(upper.length)])
   }
   if (opts.numbers) {
     pool += digits
-    guaranteed.push(digits[Math.floor(Math.random() * digits.length)])
+    guaranteed.push(digits[randIndex(digits.length)])
   }
   if (opts.symbols) {
     pool += symbols
-    guaranteed.push(symbols[Math.floor(Math.random() * symbols.length)])
+    guaranteed.push(symbols[randIndex(symbols.length)])
   }
 
   const fill = Array.from(
     { length: Math.max(0, opts.length - guaranteed.length) },
-    () => pool[Math.floor(Math.random() * pool.length)]
+    () => pool[randIndex(pool.length)]
   )
 
   const all = [...guaranteed, ...fill]
   for (let i = all.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = randIndex(i + 1)
     ;[all[i], all[j]] = [all[j], all[i]]
   }
   return all.join('')
