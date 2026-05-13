@@ -4,8 +4,9 @@ import AddPasswordPage from './AddPasswordPage'
 import EditPasswordPage from './EditPasswordPage'
 
 function faviconUrl(site) {
-  const domain = site.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0]
-  return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
+  let domain = site.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0]
+  if (!domain.includes('.')) domain += '.com'
+  return `https://icons.duckduckgo.com/ip3/${domain}.ico`
 }
 
 function capitalize(str) {

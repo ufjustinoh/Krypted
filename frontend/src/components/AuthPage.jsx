@@ -33,8 +33,7 @@ export default function AuthPage({ onLogin }) {
       // pass the token up to App.jsx so it can store it
       onLogin(access_token)
     } catch (err) {
-      // show whatever error message came back from the backend
-      setError(err.message)
+      setError(err.status === 401 ? 'Invalid username or password' : err.message)
     } finally {
       setLoading(false)
     }
