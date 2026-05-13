@@ -127,7 +127,11 @@ export default function AuthPage({ onLogin }) {
         <span className="auth-brand">Krypted</span>
       </div>
       <div className="auth-content">
-        <h2 className="auth-heading">{mode === 'login' ? 'Enter your password' : 'Create your password'}</h2>
+        <h2 className="auth-heading">
+          {mode === 'login'
+            ? `Welcome back, ${email.split('@')[0]}`
+            : 'Create your password'}
+        </h2>
         <div className="auth-card">
           <button className="auth-back" onClick={goBack}>← {email}</button>
           <form onSubmit={handleSubmit}>
