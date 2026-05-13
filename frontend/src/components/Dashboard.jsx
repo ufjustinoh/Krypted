@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getPasswords, createPassword, updatePassword, deletePassword } from '../api'
+import AddPasswordPage from './AddPasswordPage'
 
 // token is the JWT from login, onLogout is called when the user clicks logout
 export default function Dashboard({ token, onLogout }) {
@@ -13,17 +14,8 @@ export default function Dashboard({ token, onLogout }) {
   // top-level error message (e.g. fetch failed)
   const [error, setError] = useState('')
 
-  // controls whether the add password form is visible
+  // controls whether the add password page is visible
   const [showForm, setShowForm] = useState(false)
-
-  // the three fields in the add password form
-  const [form, setForm] = useState({ site: '', username: '', password: '' })
-
-  // error message shown inside the add form
-  const [formError, setFormError] = useState('')
-
-  // true while the add form is being submitted
-  const [submitting, setSubmitting] = useState(false)
 
   // tracks which password rows have their password visible (by id)
   const [visibleIds, setVisibleIds] = useState(new Set())
@@ -62,23 +54,10 @@ export default function Dashboard({ token, onLogout }) {
     }
   }
 
-  async function handleAdd(e) {
-    e.preventDefault()
-    setFormError('')
-    setSubmitting(true)
-    try {
-      // send the new entry to the backend, get back the saved entry with its id
-      const entry = await createPassword(token, form)
-      // add it to the list without refetching everything
-      setPasswords(prev => [...prev, entry])
-      // reset form and hide it
-      setForm({ site: '', username: '', password: '' })
-      setShowForm(false)
-    } catch (err) {
-      setFormError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
+  async function handleAdd(formData) {
+    const entry = await createPassword(token, formData)
+    setPasswords(prev => [...prev, entry])
+    setShowForm(false)
   }
 
   async function handleDelete(id) {
@@ -134,6 +113,10 @@ export default function Dashboard({ token, onLogout }) {
     p.site.toLowerCase().includes(search.toLowerCase())
   )
 
+  if (showForm) {
+    return <AddPasswordPage onSave={handleAdd} onCancel={() => setShowForm(false)} />
+  }
+
   return (
     <div className="dashboard">
       <header className="dashboard-header">
@@ -150,42 +133,8 @@ export default function Dashboard({ token, onLogout }) {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          <button onClick={() => setShowForm(f => !f)}>
-            {showForm ? 'Cancel' : '+ Add Password'}
-          </button>
+          <button onClick={() => setShowForm(true)}>+ Add Password</button>
         </div>
-
-        {/* add password form — only shown when showForm is true */}
-        {showForm && (
-          <form className="add-form" onSubmit={handleAdd}>
-            <input
-              placeholder="Site (e.g. github.com)"
-              value={form.site}
-              onChange={e => setForm(f => ({ ...f, site: e.target.value }))}
-              required
-              autoFocus
-            />
-            <input
-              placeholder="Username / Email"
-              value={form.username}
-              onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              required
-            />
-            {formError && <p className="error">{formError}</p>}
-            <div className="form-actions">
-              <button type="submit" disabled={submitting}>
-                {submitting ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </form>
-        )}
 
         {loading && <p className="muted">Loading...</p>}
         {error && <p className="error">{error}</p>}

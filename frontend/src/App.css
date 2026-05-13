@@ -242,6 +242,53 @@ button:disabled {
   background: var(--accent-bg);
 }
 
+/* ── Add Password full page ── */
+
+.add-page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 40px;
+  border-bottom: 1px solid var(--border);
+}
+
+.add-page-header h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.add-page-body {
+  display: flex;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.add-page-body form {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
 /* ── Delete confirmation modal ── */
 
 .modal-overlay {
