@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getPasswords, createPassword, deletePassword } from '../api'
+import { getPasswords, createPassword, updatePassword, deletePassword } from '../api'
 
 // token is the JWT from login, onLogout is called when the user clicks logout
 export default function Dashboard({ token, onLogout }) {
@@ -27,6 +27,15 @@ export default function Dashboard({ token, onLogout }) {
 
   // tracks which password rows have their password visible (by id)
   const [visibleIds, setVisibleIds] = useState(new Set())
+
+  // id of the row currently being edited, null if none
+  const [editingId, setEditingId] = useState(null)
+
+  // live values of the edit form fields
+  const [editForm, setEditForm] = useState({ site: '', username: '', password: '' })
+
+  // true while the edit save request is in flight
+  const [saving, setSaving] = useState(false)
 
   // fetch passwords once when the component first loads
   useEffect(() => {
@@ -72,6 +81,28 @@ export default function Dashboard({ token, onLogout }) {
       setVisibleIds(prev => { const s = new Set(prev); s.delete(id); return s })
     } catch (err) {
       setError(err.message)
+    }
+  }
+
+  function handleEdit(p) {
+    setEditingId(p.id)
+    setEditForm({ site: p.site, username: p.username, password: p.password })
+  }
+
+  function handleCancelEdit() {
+    setEditingId(null)
+  }
+
+  async function handleSave(id) {
+    setSaving(true)
+    try {
+      const updated = await updatePassword(token, id, editForm)
+      setPasswords(prev => prev.map(p => p.id === id ? updated : p))
+      setEditingId(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -153,22 +184,34 @@ export default function Dashboard({ token, onLogout }) {
             <tbody>
               {passwords.map(p => (
                 <tr key={p.id}>
-                  <td>{p.site}</td>
-                  <td>{p.username}</td>
-                  <td>
-                    <span className="password-cell">
-                      {/* show dots unless this entry's id is in visibleIds */}
-                      {visibleIds.has(p.id) ? p.password : '••••••••'}
-                      <button className="btn-ghost small" onClick={() => toggleVisible(p.id)}>
-                        {visibleIds.has(p.id) ? 'Hide' : 'Show'}
-                      </button>
-                    </span>
-                  </td>
-                  <td>
-                    <button className="btn-danger" onClick={() => handleDelete(p.id)}>
-                      Delete
-                    </button>
-                  </td>
+                  {editingId === p.id ? (
+                    <>
+                      <td><input value={editForm.site} onChange={e => setEditForm(f => ({ ...f, site: e.target.value }))} /></td>
+                      <td><input value={editForm.username} onChange={e => setEditForm(f => ({ ...f, username: e.target.value }))} /></td>
+                      <td><input value={editForm.password} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))} /></td>
+                      <td className="row-actions">
+                        <button onClick={() => handleSave(p.id)} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                        <button className="btn-ghost" onClick={handleCancelEdit}>Cancel</button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td>{p.site}</td>
+                      <td>{p.username}</td>
+                      <td>
+                        <span className="password-cell">
+                          {visibleIds.has(p.id) ? p.password : '••••••••'}
+                          <button className="btn-ghost small" onClick={() => toggleVisible(p.id)}>
+                            {visibleIds.has(p.id) ? 'Hide' : 'Show'}
+                          </button>
+                        </span>
+                      </td>
+                      <td className="row-actions">
+                        <button className="btn-ghost small" onClick={() => handleEdit(p)}>Edit</button>
+                        <button className="btn-danger" onClick={() => handleDelete(p.id)}>Delete</button>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

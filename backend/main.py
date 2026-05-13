@@ -104,6 +104,21 @@ def create_password(entry: schemas.PasswordEntryCreate, db: Session = Depends(ge
         "password": entry.password  # return the original plain text password
     }                                                                                                                                                                                                     
    
+@app.put("/passwords/{entry_id}", response_model=schemas.PasswordEntryResponse)
+def update_password(entry_id: int, entry: schemas.PasswordEntryUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    db_entry = db.query(models.PasswordEntry).filter(
+        models.PasswordEntry.id == entry_id,
+        models.PasswordEntry.user_id == current_user.id
+    ).first()
+    if not db_entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    db_entry.site = entry.site
+    db_entry.username = entry.username
+    db_entry.encrypted_password = crypto.encrypt_password(entry.password)
+    db.commit()
+    db.refresh(db_entry)
+    return {"id": db_entry.id, "site": db_entry.site, "username": db_entry.username, "password": entry.password}
+
 @app.delete("/passwords/{entry_id}")                                                                                                                                                                      
 def delete_password(entry_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     entry = db.query(models.PasswordEntry).filter(                                                                                                                                                        

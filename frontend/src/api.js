@@ -1,13 +1,21 @@
 // Base URL of your FastAPI backend
 const BASE = 'https://passwordmanager-owfm.onrender.com'
 
-// Reusable helper — all API functions use this instead of writing fetch() every time 
-async function request(path, options = {}) {   
-    const res = await fetch(`${BASE}${path}`, options)
-    const data = await res.json()
-    // If the response status is 4xx/5xx, throw an error with the backend's message
-    if (!res.ok) throw new Error(data.detail || 'Request failed')
+// Reusable helper — all API functions use this instead of writing fetch() every time
+async function request(path, options = {}) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 15000)
+    try {
+        const res = await fetch(`${BASE}${path}`, { ...options, signal: controller.signal })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.detail || 'Request failed')
         return data
+    } catch (err) {
+        if (err.name === 'AbortError') throw new Error('Request timed out — the server may be waking up, please try again')
+        throw err
+    } finally {
+        clearTimeout(timer)
+    }
 }
 
 // Calls POST /auth/register with email + password
@@ -46,6 +54,18 @@ export function createPassword(token, entry) {
         body: JSON.stringify(entry),
     })
 } 
+
+// Calls PUT /passwords/{id} — updates site, username, and password for an entry
+export function updatePassword(token, id, entry) {
+    return request(`/passwords/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(entry),
+    })
+}
 
 // Calls DELETE /passwords/{id} — removes a specific password entry by its id
 export function deletePassword(token, id) {

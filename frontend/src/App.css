@@ -235,6 +235,13 @@ button:disabled {
   background: var(--accent-bg);
 }
 
+/* action buttons (edit + delete) side by side */
+.row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* password value + show/hide button side by side */
 .password-cell {
   display: flex;

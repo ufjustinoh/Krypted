@@ -28,6 +28,11 @@ class PasswordEntryCreate(BaseModel):
     username: str
     password: str         # plain text password we get from frontend, we will encrypt it before storing in DB
 
+class PasswordEntryUpdate(BaseModel):
+    site: str
+    username: str
+    password: str
+
 class PasswordEntryResponse(BaseModel):
     id: int
     site: str
