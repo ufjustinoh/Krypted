@@ -20,11 +20,11 @@ async function request(path, options = {}) {
 }
 
 // Calls POST /auth/register with email + password
-export function register(email, password) { 
+export function register(firstName, lastName, email, password, confirm) {
     return request('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }), 
+        body: JSON.stringify({ first_name: firstName, last_name: lastName, email, password, confirm }),
     })
 }
 

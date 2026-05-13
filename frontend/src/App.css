@@ -70,6 +70,12 @@
   accent-color: var(--accent);
 }
 
+.name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;

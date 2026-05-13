@@ -4,10 +4,16 @@ from sqlalchemy.orm import Session
 from jose import JWTError
 from fastapi.security import OAuth2PasswordBearer
 
+from sqlalchemy import text
 import models, schemas, auth, crypto
 from database import engine, SessionLocal
 
-models.Base.metadata.create_all(bind = engine)                      # create the database tables 
+models.Base.metadata.create_all(bind = engine)
+
+with engine.connect() as conn:
+    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR"))
+    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR"))
+    conn.commit()
 
 app = FastAPI()                                                     # create the app
 app.add_middleware(     
@@ -48,16 +54,20 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 Auth Routes
 """
 
-@app.post("/auth/register", response_model=schemas.UserResponse)                                                                                                                                          
+@app.post("/auth/register", response_model=schemas.UserResponse)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(models.User).filter(models.User.email == user.email).first()                                                                                                                      
-    if existing:                                                                                                                                                                                          
+    if user.password != user.confirm:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    existing = db.query(models.User).filter(models.User.email == user.email).first()
+    if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    new_user = models.User(                                                                                                                                                                               
-        email=user.email,                                                                                                                                                                                 
+    new_user = models.User(
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
         password_hash=auth.hash_password(user.password)
-    )                                                                                                                                                                                                     
-    db.add(new_user)                                      
+    )
+    db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user                                                                                                                                                                                       

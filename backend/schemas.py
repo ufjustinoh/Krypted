@@ -2,12 +2,16 @@ from pydantic import BaseModel
 
 # used when a user registers, what we expect to receieve from the frontend
 class UserCreate(BaseModel):
+    first_name: str
+    last_name: str
     email: str
     password: str
+    confirm: str
 
-# used when we repsond back about a user, no password fields (never send that back)
 class UserResponse(BaseModel):
     id: int
+    first_name: str | None
+    last_name: str | None
     email: str
 
     class Config:                   # this for pydantic to read data from SQLAlchemy models

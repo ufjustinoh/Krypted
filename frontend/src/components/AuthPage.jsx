@@ -20,14 +20,26 @@ function SSOIcon() {
   )
 }
 
+function Navbar() {
+  return (
+    <div className="auth-navbar">
+      <span className="auth-brand">Krypted</span>
+    </div>
+  )
+}
+
 export default function AuthPage({ onLogin }) {
   const [step, setStep] = useState('email')
-  const [mode, setMode] = useState('login')
   const [email, setEmail] = useState(() => localStorage.getItem('rememberedEmail') || '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [rememberEmail, setRememberEmail] = useState(() => !!localStorage.getItem('rememberedEmail'))
+
+  // register-only fields
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [confirm, setConfirm] = useState('')
 
   function handleContinue(e) {
     e.preventDefault()
@@ -40,14 +52,23 @@ export default function AuthPage({ onLogin }) {
     setStep('password')
   }
 
-  async function handleSubmit(e) {
+  function goToRegister() {
+    setError('')
+    setStep('register')
+  }
+
+  function goBack() {
+    setStep('email')
+    setPassword('')
+    setConfirm('')
+    setError('')
+  }
+
+  async function handleLogin(e) {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
-      if (mode === 'register') {
-        await register(email, password)
-      }
       const { access_token } = await login(email, password)
       onLogin(access_token)
     } catch (err) {
@@ -57,23 +78,29 @@ export default function AuthPage({ onLogin }) {
     }
   }
 
-  function goBack() {
-    setStep('email')
-    setPassword('')
+  async function handleRegister(e) {
+    e.preventDefault()
     setError('')
-  }
-
-  function toggleMode() {
-    setMode(m => m === 'login' ? 'register' : 'login')
-    setError('')
+    if (password !== confirm) {
+      setError('Passwords do not match')
+      return
+    }
+    setLoading(true)
+    try {
+      await register(firstName, lastName, email, password, confirm)
+      const { access_token } = await login(email, password)
+      onLogin(access_token)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (step === 'email') {
     return (
       <div className="auth-page">
-        <div className="auth-navbar">
-          <span className="auth-brand">Krypted</span>
-        </div>
+        <Navbar />
         <div className="auth-content">
           <h2 className="auth-heading">Log in to your Vault</h2>
           <div className="auth-card">
@@ -111,9 +138,69 @@ export default function AuthPage({ onLogin }) {
 
             <p className="auth-toggle">
               Don't have an account?{' '}
-              <button type="button" onClick={() => { setMode('register'); setStep('password') }}>
-                Register
+              <button type="button" onClick={goToRegister}>Register</button>
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === 'register') {
+    return (
+      <div className="auth-page">
+        <Navbar />
+        <div className="auth-content">
+          <h2 className="auth-heading">Create your account</h2>
+          <div className="auth-card">
+            <button className="auth-back" onClick={goBack}>← Back to Log in</button>
+            <form onSubmit={handleRegister}>
+              <div className="name-row">
+                <input
+                  type="text"
+                  placeholder="First name"
+                  value={firstName}
+                  onChange={e => setFirstName(e.target.value)}
+                  required
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  placeholder="Last name"
+                  value={lastName}
+                  onChange={e => setLastName(e.target.value)}
+                  required
+                />
+              </div>
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+              <input
+                type="password"
+                placeholder="Confirm password"
+                value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+                required
+              />
+              {error && <p className="error">{error}</p>}
+              <button type="submit" disabled={loading}>
+                {loading ? 'Creating account...' : 'Create account'}
               </button>
+            </form>
+            <p className="auth-toggle">
+              Already have an account?{' '}
+              <button type="button" onClick={goBack}>Sign in</button>
             </p>
           </div>
         </div>
@@ -123,18 +210,12 @@ export default function AuthPage({ onLogin }) {
 
   return (
     <div className="auth-page">
-      <div className="auth-navbar">
-        <span className="auth-brand">Krypted</span>
-      </div>
+      <Navbar />
       <div className="auth-content">
-        <h2 className="auth-heading">
-          {mode === 'login'
-            ? `Welcome back, ${email.split('@')[0]}`
-            : 'Create your password'}
-        </h2>
+        <h2 className="auth-heading">Welcome back, {email.split('@')[0]}</h2>
         <div className="auth-card">
           <button className="auth-back" onClick={goBack}>← Back to Log in</button>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleLogin}>
             <input
               type="password"
               placeholder="Password"
@@ -145,14 +226,12 @@ export default function AuthPage({ onLogin }) {
             />
             {error && <p className="error">{error}</p>}
             <button type="submit" disabled={loading}>
-              {loading ? 'Loading...' : mode === 'login' ? 'Sign in' : 'Register'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
           <p className="auth-toggle">
-            {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
-            <button type="button" onClick={toggleMode}>
-              {mode === 'login' ? 'Register' : 'Sign in'}
-            </button>
+            Don't have an account?{' '}
+            <button type="button" onClick={goToRegister}>Register</button>
           </p>
         </div>
       </div>

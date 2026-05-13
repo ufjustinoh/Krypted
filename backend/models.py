@@ -6,9 +6,11 @@ from database import Base
 class User(Base):
     __tablename__ = "users"                                         
 
-    id = Column(Integer, primary_key = True)                        # unique id for each user, auto-increments
-    email = Column(String, unique = True, nullable = False)         # email must be unique, cant be empty     
-    password_hash = Column(String, nullable = False)                # never store passwords as plain text
+    id = Column(Integer, primary_key = True)
+    first_name = Column(String, nullable = True)
+    last_name = Column(String, nullable = True)
+    email = Column(String, unique = True, nullable = False)
+    password_hash = Column(String, nullable = False)
 
     passwords = relationship("PasswordEntry", back_populates = "owner")    # lets us do user. passwords to get all their entries  
 
