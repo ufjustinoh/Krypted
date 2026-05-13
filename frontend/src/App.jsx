@@ -10,9 +10,11 @@ function App() {
 
   useEffect(() => {
     if (token) {
-      getMe(token).then(setUser).catch(() => {
-        localStorage.removeItem('token')
-        setToken(null)
+      getMe(token).then(setUser).catch((err) => {
+        if (err.status === 401) {
+          localStorage.removeItem('token')
+          setToken(null)
+        }
       })
     }
   }, [token])
