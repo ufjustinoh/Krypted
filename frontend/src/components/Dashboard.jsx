@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getPasswords, createPassword, updatePassword, deletePassword } from '../api'
 import AddPasswordPage from './AddPasswordPage'
+import EditPasswordPage from './EditPasswordPage'
 
 // token is the JWT from login, onLogout is called when the user clicks logout
 export default function Dashboard({ token, onLogout }) {
@@ -17,20 +18,14 @@ export default function Dashboard({ token, onLogout }) {
   // controls whether the add password page is visible
   const [showForm, setShowForm] = useState(false)
 
+  // the entry currently being edited, null if none
+  const [editingEntry, setEditingEntry] = useState(null)
+
   // tracks which password rows have their password visible (by id)
   const [visibleIds, setVisibleIds] = useState(new Set())
 
   // id of the row pending delete confirmation, null if none
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
-
-  // id of the row currently being edited, null if none
-  const [editingId, setEditingId] = useState(null)
-
-  // live values of the edit form fields
-  const [editForm, setEditForm] = useState({ site: '', username: '', password: '' })
-
-  // true while the edit save request is in flight
-  const [saving, setSaving] = useState(false)
 
   // id of the row that just had its password copied (shows "Copied!" briefly)
   const [copiedId, setCopiedId] = useState(null)
@@ -72,26 +67,10 @@ export default function Dashboard({ token, onLogout }) {
     }
   }
 
-  function handleEdit(p) {
-    setEditingId(p.id)
-    setEditForm({ site: p.site, username: p.username, password: p.password })
-  }
-
-  function handleCancelEdit() {
-    setEditingId(null)
-  }
-
-  async function handleSave(id) {
-    setSaving(true)
-    try {
-      const updated = await updatePassword(token, id, editForm)
-      setPasswords(prev => prev.map(p => p.id === id ? updated : p))
-      setEditingId(null)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
+  async function handleSave(id, formData) {
+    const updated = await updatePassword(token, id, formData)
+    setPasswords(prev => prev.map(p => p.id === id ? updated : p))
+    setEditingEntry(null)
   }
 
   async function handleCopy(id, password) {
@@ -115,6 +94,16 @@ export default function Dashboard({ token, onLogout }) {
 
   if (showForm) {
     return <AddPasswordPage onSave={handleAdd} onCancel={() => setShowForm(false)} />
+  }
+
+  if (editingEntry) {
+    return (
+      <EditPasswordPage
+        entry={editingEntry}
+        onSave={formData => handleSave(editingEntry.id, formData)}
+        onCancel={() => setEditingEntry(null)}
+      />
+    )
   }
 
   return (
@@ -162,41 +151,27 @@ export default function Dashboard({ token, onLogout }) {
             <tbody>
               {filtered.map(p => (
                 <tr key={p.id}>
-                  {editingId === p.id ? (
-                    <>
-                      <td><input value={editForm.site} onChange={e => setEditForm(f => ({ ...f, site: e.target.value }))} /></td>
-                      <td><input value={editForm.username} onChange={e => setEditForm(f => ({ ...f, username: e.target.value }))} /></td>
-                      <td><input value={editForm.password} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))} /></td>
-                      <td className="row-actions">
-                        <button onClick={() => handleSave(p.id)} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
-                        <button className="btn-ghost" onClick={handleCancelEdit}>Cancel</button>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td>{p.site}</td>
-                      <td>{p.username}</td>
-                      <td>
-                        <span className="password-cell">
-                          <button className="btn-icon" title="Copy password" onClick={() => handleCopy(p.id, p.password)}>
-                            {copiedId === p.id ? (
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
-                            )}
-                          </button>
-                          {visibleIds.has(p.id) ? p.password : '••••••••'}
-                          <button className="btn-ghost small" onClick={() => toggleVisible(p.id)}>
-                            {visibleIds.has(p.id) ? 'Hide' : 'Show'}
-                          </button>
-                        </span>
-                      </td>
-                      <td className="row-actions">
-                        <button className="btn-ghost small" onClick={() => handleEdit(p)}>Edit</button>
-                        <button className="btn-danger" onClick={() => setConfirmDeleteId(p.id)}>Delete</button>
-                      </td>
-                    </>
-                  )}
+                  <td>{p.site}</td>
+                  <td>{p.username}</td>
+                  <td>
+                    <span className="password-cell">
+                      <button className="btn-icon" title="Copy password" onClick={() => handleCopy(p.id, p.password)}>
+                        {copiedId === p.id ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                        )}
+                      </button>
+                      {visibleIds.has(p.id) ? p.password : '••••••••'}
+                      <button className="btn-ghost small" onClick={() => toggleVisible(p.id)}>
+                        {visibleIds.has(p.id) ? 'Hide' : 'Show'}
+                      </button>
+                    </span>
+                  </td>
+                  <td className="row-actions">
+                    <button className="btn-ghost small" onClick={() => setEditingEntry(p)}>Edit</button>
+                    <button className="btn-danger" onClick={() => setConfirmDeleteId(p.id)}>Delete</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
