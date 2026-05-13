@@ -57,6 +57,10 @@ export default function AddPasswordPage({ onSave, onCancel }) {
       setError('Password must be at least 10 characters')
       return
     }
+    if (!/[0-9]/.test(form.password)) {
+      setError('Password must include at least one number')
+      return
+    }
     if (!/[^A-Za-z0-9]/.test(form.password)) {
       setError('Password must include at least one special character')
       return
@@ -120,7 +124,7 @@ export default function AddPasswordPage({ onSave, onCancel }) {
                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
-            <p className="field-hint"><strong>Important:</strong> Your password must be 10 characters minimum and must include a special character</p>
+            <p className="field-hint"><strong>Important:</strong> Your password must be 10 characters minimum, include at least 1 number, and 1 special character</p>
             <StrengthBar password={form.password} />
           </div>
 
@@ -138,7 +142,6 @@ export default function AddPasswordPage({ onSave, onCancel }) {
                 {showConfirm ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
-            <StrengthBar password={form.confirm} />
           </div>
 
           {error && <p className="error">{error}</p>}
