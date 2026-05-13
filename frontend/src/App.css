@@ -235,6 +235,11 @@ button:disabled {
   background: var(--accent-bg);
 }
 
+.confirm-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
 /* action buttons (edit + delete) side by side */
 .row-actions {
   display: flex;

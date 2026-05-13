@@ -28,6 +28,9 @@ export default function Dashboard({ token, onLogout }) {
   // tracks which password rows have their password visible (by id)
   const [visibleIds, setVisibleIds] = useState(new Set())
 
+  // id of the row pending delete confirmation, null if none
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+
   // id of the row currently being edited, null if none
   const [editingId, setEditingId] = useState(null)
 
@@ -208,7 +211,15 @@ export default function Dashboard({ token, onLogout }) {
                       </td>
                       <td className="row-actions">
                         <button className="btn-ghost small" onClick={() => handleEdit(p)}>Edit</button>
-                        <button className="btn-danger" onClick={() => handleDelete(p.id)}>Delete</button>
+                        {confirmDeleteId === p.id ? (
+                          <>
+                            <span className="confirm-label">Sure?</span>
+                            <button className="btn-danger" onClick={() => { setConfirmDeleteId(null); handleDelete(p.id) }}>Yes</button>
+                            <button className="btn-ghost small" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                          </>
+                        ) : (
+                          <button className="btn-danger" onClick={() => setConfirmDeleteId(p.id)}>Delete</button>
+                        )}
                       </td>
                     </>
                   )}
