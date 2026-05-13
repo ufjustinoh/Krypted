@@ -40,6 +40,9 @@ export default function Dashboard({ token, onLogout }) {
   // true while the edit save request is in flight
   const [saving, setSaving] = useState(false)
 
+  // id of the row that just had its password copied (shows "Copied!" briefly)
+  const [copiedId, setCopiedId] = useState(null)
+
   // fetch passwords once when the component first loads
   useEffect(() => {
     loadPasswords()
@@ -107,6 +110,12 @@ export default function Dashboard({ token, onLogout }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleCopy(id, password) {
+    await navigator.clipboard.writeText(password)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
   }
 
   function toggleVisible(id) {
@@ -206,6 +215,9 @@ export default function Dashboard({ token, onLogout }) {
                           {visibleIds.has(p.id) ? p.password : '••••••••'}
                           <button className="btn-ghost small" onClick={() => toggleVisible(p.id)}>
                             {visibleIds.has(p.id) ? 'Hide' : 'Show'}
+                          </button>
+                          <button className="btn-ghost small" onClick={() => handleCopy(p.id, p.password)}>
+                            {copiedId === p.id ? 'Copied!' : 'Copy'}
                           </button>
                         </span>
                       </td>
