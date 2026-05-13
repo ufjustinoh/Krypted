@@ -130,10 +130,9 @@ export default function Dashboard({ token, onLogout }) {
     })
   }
 
-  const filtered = passwords.filter(p => {
-    const q = search.toLowerCase()
-    return p.site.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)
-  })
+  const filtered = passwords.filter(p =>
+    p.site.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <div className="dashboard">
@@ -147,7 +146,7 @@ export default function Dashboard({ token, onLogout }) {
           <span>{passwords.length} saved password{passwords.length !== 1 ? 's' : ''}</span>
           <input
             className="search-input"
-            placeholder="Search by site or username..."
+            placeholder="Search by site..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
