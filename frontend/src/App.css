@@ -3,9 +3,34 @@
 .auth-container {
   min-height: 100svh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  gap: 16px;
+}
+
+.auth-heading {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.auth-back {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  padding: 0;
+  margin-bottom: 20px;
+  cursor: pointer;
+  display: block;
+  opacity: 0.7;
+}
+
+.auth-back:hover {
+  opacity: 1;
 }
 
 .auth-card {
@@ -18,18 +43,6 @@
   box-shadow: var(--shadow);
 }
 
-.auth-card h1 {
-  font-size: 28px;
-  margin: 0 0 4px;
-  letter-spacing: -0.5px;
-}
-
-.auth-card h2 {
-  font-size: 18px;
-  color: var(--text);
-  font-weight: 400;
-  margin: 0 0 28px;
-}
 
 /* toggle link below the form */
 .auth-toggle {
