@@ -42,6 +42,14 @@ export default function Dashboard({ token, onLogout }) {
   // search query for filtering the password list
   const [search, setSearch] = useState('')
 
+  function handleApiError(err) {
+    if (err.status === 401) {
+      onLogout()
+    } else {
+      setError(err.message)
+    }
+  }
+
   // fetch passwords once when the component first loads
   useEffect(() => {
     loadPasswords()
@@ -52,34 +60,40 @@ export default function Dashboard({ token, onLogout }) {
       const data = await getPasswords(token)
       setPasswords(data)
     } catch (err) {
-      setError(err.message)
+      handleApiError(err)
     } finally {
       setLoading(false)
     }
   }
 
   async function handleAdd(formData) {
-    const entry = await createPassword(token, formData)
-    setPasswords(prev => [...prev, entry])
-    setShowForm(false)
+    try {
+      const entry = await createPassword(token, formData)
+      setPasswords(prev => [...prev, entry])
+      setShowForm(false)
+    } catch (err) {
+      handleApiError(err)
+    }
   }
 
   async function handleDelete(id) {
     try {
       await deletePassword(token, id)
-      // remove it from the list locally so the UI updates instantly
       setPasswords(prev => prev.filter(p => p.id !== id))
-      // also remove it from the visible set if it was shown
       setVisibleIds(prev => { const s = new Set(prev); s.delete(id); return s })
     } catch (err) {
-      setError(err.message)
+      handleApiError(err)
     }
   }
 
   async function handleSave(id, formData) {
-    const updated = await updatePassword(token, id, formData)
-    setPasswords(prev => prev.map(p => p.id === id ? updated : p))
-    setEditingEntry(null)
+    try {
+      const updated = await updatePassword(token, id, formData)
+      setPasswords(prev => prev.map(p => p.id === id ? updated : p))
+      setEditingEntry(null)
+    } catch (err) {
+      handleApiError(err)
+    }
   }
 
   async function handleCopy(id, password) {

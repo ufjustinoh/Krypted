@@ -8,6 +8,7 @@ async function request(path, options = {}) {
     try {
         const res = await fetch(`${BASE}${path}`, { ...options, signal: controller.signal })
         const data = await res.json()
+        if (res.status === 401) throw Object.assign(new Error('UNAUTHORIZED'), { status: 401 })
         if (!res.ok) throw new Error(data.detail || 'Request failed')
         return data
     } catch (err) {
