@@ -133,7 +133,7 @@ export default function AuthPage({ onLogin }) {
             : 'Create your password'}
         </h2>
         <div className="auth-card">
-          <button className="auth-back" onClick={goBack}>← {email}</button>
+          <button className="auth-back" onClick={goBack}>← Back to Log in</button>
           <form onSubmit={handleSubmit}>
             <input
               type="password"
