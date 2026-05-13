@@ -43,6 +43,9 @@ export default function Dashboard({ token, onLogout }) {
   // id of the row that just had its password copied (shows "Copied!" briefly)
   const [copiedId, setCopiedId] = useState(null)
 
+  // search query for filtering the password list
+  const [search, setSearch] = useState('')
+
   // fetch passwords once when the component first loads
   useEffect(() => {
     loadPasswords()
@@ -127,6 +130,11 @@ export default function Dashboard({ token, onLogout }) {
     })
   }
 
+  const filtered = passwords.filter(p => {
+    const q = search.toLowerCase()
+    return p.site.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)
+  })
+
   return (
     <div className="dashboard">
       <header className="dashboard-header">
@@ -137,6 +145,12 @@ export default function Dashboard({ token, onLogout }) {
       <div className="dashboard-body">
         <div className="toolbar">
           <span>{passwords.length} saved password{passwords.length !== 1 ? 's' : ''}</span>
+          <input
+            className="search-input"
+            placeholder="Search by site or username..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
           <button onClick={() => setShowForm(f => !f)}>
             {showForm ? 'Cancel' : '+ Add Password'}
           </button>
@@ -182,8 +196,12 @@ export default function Dashboard({ token, onLogout }) {
           <p className="muted empty">No passwords saved yet. Add one above.</p>
         )}
 
-        {/* password table — only renders when there's at least one entry */}
-        {passwords.length > 0 && (
+        {!loading && passwords.length > 0 && filtered.length === 0 && (
+          <p className="muted empty">No entries match "{search}".</p>
+        )}
+
+        {/* password table — only renders when there's at least one match */}
+        {filtered.length > 0 && (
           <table className="password-table">
             <thead>
               <tr>
@@ -194,7 +212,7 @@ export default function Dashboard({ token, onLogout }) {
               </tr>
             </thead>
             <tbody>
-              {passwords.map(p => (
+              {filtered.map(p => (
                 <tr key={p.id}>
                   {editingId === p.id ? (
                     <>

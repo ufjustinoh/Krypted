@@ -179,13 +179,20 @@ button:disabled {
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
 .toolbar span {
   font-size: 14px;
   color: var(--text);
+  white-space: nowrap;
+}
+
+.search-input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 14px;
 }
 
 /* the add password form panel */
