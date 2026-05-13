@@ -141,7 +141,10 @@ export default function AddPasswordPage({ onSave, onCancel }) {
             <input
               placeholder="e.g. github.com"
               value={form.site}
-              onChange={e => setForm(f => ({ ...f, site: e.target.value }))}
+              onChange={e => {
+                const v = e.target.value
+                setForm(f => ({ ...f, site: v.charAt(0).toUpperCase() + v.slice(1) }))
+              }}
               required
               autoFocus
             />

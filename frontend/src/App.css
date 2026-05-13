@@ -407,6 +407,18 @@ button:disabled {
   opacity: 1;
 }
 
+/* site name + favicon side by side */
+.site-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.site-cell img {
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+
 /* password value + show/hide button side by side */
 .password-cell {
   display: flex;

@@ -3,6 +3,15 @@ import { getPasswords, createPassword, updatePassword, deletePassword } from '..
 import AddPasswordPage from './AddPasswordPage'
 import EditPasswordPage from './EditPasswordPage'
 
+function faviconUrl(site) {
+  const domain = site.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0]
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
+}
+
+function capitalize(str) {
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : str
+}
+
 // token is the JWT from login, onLogout is called when the user clicks logout
 export default function Dashboard({ token, onLogout }) {
 
@@ -151,7 +160,18 @@ export default function Dashboard({ token, onLogout }) {
             <tbody>
               {filtered.map(p => (
                 <tr key={p.id}>
-                  <td>{p.site}</td>
+                  <td>
+                    <span className="site-cell">
+                      <img
+                        src={faviconUrl(p.site)}
+                        width="16"
+                        height="16"
+                        alt=""
+                        onError={e => { e.target.style.display = 'none' }}
+                      />
+                      {capitalize(p.site)}
+                    </span>
+                  </td>
                   <td>{p.username}</td>
                   <td>
                     <span className="password-cell">
