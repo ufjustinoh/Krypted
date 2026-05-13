@@ -1,7 +1,27 @@
 /* ── Auth Page ── */
 
-.auth-container {
+.auth-page {
   min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-navbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+.auth-brand {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.auth-content {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -31,6 +51,51 @@
 
 .auth-back:hover {
   opacity: 1;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 4px;
+  color: var(--text);
+  opacity: 0.4;
+  font-size: 13px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-alt-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btn-alt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-alt:hover {
+  background: var(--hover);
 }
 
 .auth-card {
