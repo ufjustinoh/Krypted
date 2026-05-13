@@ -25,6 +25,7 @@ const EyeOffIcon = () => (
   </svg>
 )
 
+
 function StrengthBar({ password }) {
   const strength = getStrength(password)
   if (!strength) return null
@@ -44,12 +45,52 @@ function StrengthBar({ password }) {
   )
 }
 
+function generatePassword(opts) {
+  const lower = 'abcdefghijklmnopqrstuvwxyz'
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const digits = '0123456789'
+  const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?'
+
+  let pool = lower
+  const guaranteed = []
+
+  if (opts.upper) {
+    pool += upper
+    guaranteed.push(upper[Math.floor(Math.random() * upper.length)])
+  }
+  if (opts.numbers) {
+    pool += digits
+    guaranteed.push(digits[Math.floor(Math.random() * digits.length)])
+  }
+  if (opts.symbols) {
+    pool += symbols
+    guaranteed.push(symbols[Math.floor(Math.random() * symbols.length)])
+  }
+
+  const fill = Array.from(
+    { length: Math.max(0, opts.length - guaranteed.length) },
+    () => pool[Math.floor(Math.random() * pool.length)]
+  )
+
+  const all = [...guaranteed, ...fill]
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[all[i], all[j]] = [all[j], all[i]]
+  }
+  return all.join('')
+}
+
 export default function AddPasswordPage({ onSave, onCancel }) {
   const [form, setForm] = useState({ site: '', username: '', password: '', confirm: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  function handleGenerate() {
+    const pwd = generatePassword({ length: 16, upper: true, numbers: true, symbols: true })
+    setForm(f => ({ ...f, password: pwd, confirm: pwd }))
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -111,7 +152,13 @@ export default function AddPasswordPage({ onSave, onCancel }) {
           </div>
 
           <div className="field">
-            <label>Password</label>
+            <div className="field-label-row">
+              <label>Password</label>
+              <button type="button" className="btn-generate" onClick={handleGenerate}>
+                Generate Strong Password
+              </button>
+            </div>
+
             <div className="input-wrap">
               <input
                 type={showPassword ? 'text' : 'password'}

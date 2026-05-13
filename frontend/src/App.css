@@ -415,3 +415,26 @@ button:disabled {
   font-family: var(--mono);
   font-size: 14px;
 }
+
+/* ── Password Generator ── */
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-generate {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0;
+  cursor: pointer;
+}
+
+.btn-generate:hover {
+  text-decoration: underline;
+  opacity: 1;
+}
