@@ -78,21 +78,21 @@ def get_passwords(db: Session = Depends(get_db), current_user: models.User = Dep
     entries = db.query(models.PasswordEntry).filter(models.PasswordEntry.user_id == current_user.id).all()                                                                                                
     result = []                                           
     for entry in entries:                                                                                                                                                                                 
-        result.append({                                   
-            "id": entry.id,                                                                                                                                                                               
-            "site": entry.site,                           
-            "username": entry.username,
-            "password": crypto.decrypt_password(entry.encrypted_password)  # decrypt before sending
+        result.append({
+            "id": entry.id,
+            "site": entry.site,
+            "username": crypto.decrypt_safe(entry.username),
+            "password": crypto.decrypt_password(entry.encrypted_password)
         })
     return result
                                                                                                                                                                                                             
 @app.post("/passwords", response_model=schemas.PasswordEntryResponse)
 def create_password(entry: schemas.PasswordEntryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):                                                            
-    new_entry = models.PasswordEntry(                                                                                                                                                                     
+    new_entry = models.PasswordEntry(
         user_id=current_user.id,
-        site=entry.site,                                                                                                                                                                                  
-        username=entry.username,                          
-        encrypted_password=crypto.encrypt_password(entry.password)  # encrypt before saving
+        site=entry.site,
+        username=crypto.encrypt_password(entry.username),
+        encrypted_password=crypto.encrypt_password(entry.password)
     )                                                                                                                                                                                                     
     db.add(new_entry)
     db.commit()                                                                                                                                                                                           
@@ -113,11 +113,11 @@ def update_password(entry_id: int, entry: schemas.PasswordEntryUpdate, db: Sessi
     if not db_entry:
         raise HTTPException(status_code=404, detail="Entry not found")
     db_entry.site = entry.site
-    db_entry.username = entry.username
+    db_entry.username = crypto.encrypt_password(entry.username)
     db_entry.encrypted_password = crypto.encrypt_password(entry.password)
     db.commit()
     db.refresh(db_entry)
-    return {"id": db_entry.id, "site": db_entry.site, "username": db_entry.username, "password": entry.password}
+    return {"id": db_entry.id, "site": db_entry.site, "username": entry.username, "password": entry.password}
 
 @app.delete("/passwords/{entry_id}")                                                                                                                                                                      
 def delete_password(entry_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
