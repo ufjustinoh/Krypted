@@ -38,11 +38,15 @@
   height: 75vw;
   max-width: 700px;
   max-height: 700px;
-  color: rgba(139, 0, 255, 0.07);
+  color: rgba(168, 85, 247, 0.25);
   transform: rotate(-35deg);
   pointer-events: none;
   z-index: 0;
-  filter: drop-shadow(0 0 18px rgba(139, 0, 255, 0.15));
+  filter:
+    drop-shadow(0 0 6px rgba(139, 0, 255, 0.8))
+    drop-shadow(0 0 20px rgba(139, 0, 255, 0.5))
+    drop-shadow(0 0 50px rgba(139, 0, 255, 0.3))
+    drop-shadow(0 0 100px rgba(139, 0, 255, 0.15));
 }
 
 .auth-content > *:not(.bg-key) {
