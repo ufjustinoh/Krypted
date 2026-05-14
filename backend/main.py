@@ -17,6 +17,15 @@ with engine.connect() as conn:
     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR"))
     conn.commit()
 
+def is_password_reused(new_password: str, user: models.User, db: Session) -> bool:
+    if auth.verify_password(new_password, user.password_hash):
+        return True
+    history = db.query(models.PasswordHistory).filter(models.PasswordHistory.user_id == user.id).all()
+    return any(auth.verify_password(new_password, h.password_hash) for h in history)
+
+def archive_password(user: models.User, db: Session):
+    db.add(models.PasswordHistory(user_id=user.id, password_hash=user.password_hash))
+
 app = FastAPI()                                                     # create the app
 app.add_middleware(     
     CORSMiddleware,                                                 # this tells backend its ok to accept requests from localhost:5172 (react app) otherwise browser would block this
@@ -96,6 +105,9 @@ def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_db)):
     if not reset or datetime.utcnow().isoformat() > reset.expires_at:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
     user = db.query(models.User).filter(models.User.email == reset.email).first()
+    if is_password_reused(data.new_password, user, db):
+        raise HTTPException(status_code=400, detail="You cannot reuse a previous password")
+    archive_password(user, db)
     user.password_hash = auth.hash_password(data.new_password)
     reset.used = True
     db.commit()
@@ -197,6 +209,9 @@ def change_password(data: schemas.PasswordChange, db: Session = Depends(get_db),
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     if data.new_password != data.confirm:
         raise HTTPException(status_code=400, detail="Passwords do not match")
+    if is_password_reused(data.new_password, current_user, db):
+        raise HTTPException(status_code=400, detail="You cannot reuse a previous password")
+    archive_password(current_user, db)
     current_user.password_hash = auth.hash_password(data.new_password)
     db.commit()
     return {"message": "Password updated"}

@@ -28,6 +28,14 @@ class PasswordEntry(Base):
     owner = relationship("User", back_populates = "passwords")
 
 
+class PasswordHistory(Base):
+    __tablename__ = "password_history"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    password_hash = Column(String, nullable=False)
+
+
 class PasswordReset(Base):
     __tablename__ = "password_resets"
 

@@ -112,11 +112,12 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
             />
           </div>
           <div className="profile-field">
-            <label>New password</label>
+            <label>New password (max 16 characters)</label>
             <input
               type="password"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
+              maxLength={16}
               required
             />
           </div>
@@ -126,6 +127,7 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
+              maxLength={16}
               required
             />
           </div>

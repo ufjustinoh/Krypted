@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class UserCreate(BaseModel):
     first_name: str
     last_name: str
     email: str
-    password: str
-    confirm: str
+    password: str = Field(max_length=16)
+    confirm: str = Field(max_length=16)
 
 class UserLookup(BaseModel):
     email: str
@@ -19,8 +19,8 @@ class UserUpdate(BaseModel):
 
 class PasswordChange(BaseModel):
     current_password: str
-    new_password: str
-    confirm: str
+    new_password: str = Field(max_length=16)
+    confirm: str = Field(max_length=16)
 
 class UserResponse(BaseModel):
     id: int
@@ -46,8 +46,8 @@ class ForgotPassword(BaseModel):
 
 class ResetPassword(BaseModel):
     token: str
-    new_password: str
-    confirm: str
+    new_password: str = Field(max_length=16)
+    confirm: str = Field(max_length=16)
 
 class PasswordEntryCreate(BaseModel):
     site: str

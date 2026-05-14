@@ -101,9 +101,10 @@ function ResetForm({ token, onDone }) {
     <form onSubmit={handleSubmit}>
       <input
         type="password"
-        placeholder="New password"
+        placeholder="New password (max 16 characters)"
         value={newPassword}
         onChange={e => setNewPassword(e.target.value)}
+        maxLength={16}
         required
         autoFocus
       />
@@ -112,6 +113,7 @@ function ResetForm({ token, onDone }) {
         placeholder="Confirm new password"
         value={confirm}
         onChange={e => setConfirm(e.target.value)}
+        maxLength={16}
         required
       />
       {error && <p className="error">{error}</p>}
@@ -292,9 +294,10 @@ export default function AuthPage({ onLogin }) {
               />
               <input
                 type="password"
-                placeholder="Password"
+                placeholder="Password (max 16 characters)"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                maxLength={16}
                 required
               />
               <input
@@ -302,6 +305,7 @@ export default function AuthPage({ onLogin }) {
                 placeholder="Confirm password"
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
+                maxLength={16}
                 required
               />
               {error && <p className="error">{error}</p>}
