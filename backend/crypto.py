@@ -10,7 +10,10 @@ def encrypt_password(plain_password: str) -> str:
     return fernet.encrypt(plain_password.encode()).decode()             # encrypt and convert to str for storage
 
 def decrypt_password(encrypted_password: str) -> str:
-    return fernet.decrypt(encrypted_password.encode()).decode()         # decrypt and convert back to str for use in frontend
+    try:
+        return fernet.decrypt(encrypted_password.encode()).decode()
+    except Exception:
+        return encrypted_password
 
 def decrypt_safe(value: str) -> str:
     try:

@@ -49,6 +49,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
   const [section, setSection] = useState(null)
   const [deletedPasswords, setDeletedPasswords] = useState([])
   const [loadingDeleted, setLoadingDeleted] = useState(false)
+  const [deletedError, setDeletedError] = useState('')
   const [confirmClearAll, setConfirmClearAll] = useState(false)
 
   function handleApiError(err) {
@@ -87,20 +88,27 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
   async function loadDeletedPasswords() {
     setLoadingDeleted(true)
+    setDeletedError('')
     try {
       const data = await getDeletedPasswords(token)
       setDeletedPasswords(data)
     } catch (err) {
-      handleApiError(err)
+      if (err.status === 401) onLogout()
+      else setDeletedError(err.message)
     } finally {
       setLoadingDeleted(false)
     }
   }
 
   function handleSectionClick(s) {
+    setError('')
     setSection(prev => {
       const next = prev === s ? null : s
-      if (next === 'deleted') loadDeletedPasswords()
+      if (next === 'deleted') {
+        loadDeletedPasswords()
+      } else if (passwords.length === 0) {
+        loadPasswords()
+      }
       return next
     })
   }
@@ -250,6 +258,12 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
         <div className="section-filters">
           <button
+            className={`section-btn ${section === null ? 'active' : ''}`}
+            onClick={() => { setSection(null); setError('') }}
+          >
+            All
+          </button>
+          <button
             className={`section-btn ${section === 'websites' ? 'active' : ''}`}
             onClick={() => handleSectionClick('websites')}
           >
@@ -270,13 +284,24 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
         </div>
 
         {loading && <p className="muted">Loading...</p>}
-        {error && <p className="error">{error}</p>}
+        {error && section !== 'deleted' && (
+          <div className="error-row">
+            <p className="error">{error}</p>
+            <button className="btn-ghost small" onClick={() => { setError(''); loadPasswords() }}>Retry</button>
+          </div>
+        )}
 
         {/* Recently Deleted view */}
         {section === 'deleted' && (
           <>
             {loadingDeleted && <p className="muted">Loading...</p>}
-            {!loadingDeleted && deletedPasswords.length === 0 && (
+            {deletedError && (
+              <div className="error-row">
+                <p className="error">{deletedError}</p>
+                <button className="btn-ghost small" onClick={loadDeletedPasswords}>Retry</button>
+              </div>
+            )}
+            {!loadingDeleted && !deletedError && deletedPasswords.length === 0 && (
               <p className="muted empty">No deleted passwords.</p>
             )}
             {!loadingDeleted && deletedPasswords.length > 0 && (

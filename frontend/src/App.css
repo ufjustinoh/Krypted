@@ -768,6 +768,19 @@ button:disabled {
   margin: 0;
 }
 
+/* ── Error row with retry button ── */
+
+.error-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.error-row .error {
+  margin: 0;
+}
+
 /* ── Section filter buttons ── */
 
 .section-filters {
