@@ -11,13 +11,12 @@
   justify-content: flex-end;
   align-items: center;
   padding: 16px 28px;
-  border-bottom: 1px solid var(--border);
 }
 
 .auth-brand {
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
 .auth-content {
