@@ -164,13 +164,12 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
       )}
       {view === 'vault' && (<>
       <header className="dashboard-header">
-        <h1>Password Vault</h1>
+        <h1><strong>Master Vault</strong></h1>
       </header>
 
       <div className="dashboard-body">
         <div className="toolbar">
-          <span>{passwords.length} saved password{passwords.length !== 1 ? 's' : ''}</span>
-          <input
+<input
             className="search-input"
             placeholder="Search by site..."
             value={search}
