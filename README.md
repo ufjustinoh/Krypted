@@ -11,10 +11,9 @@ A full-stack password manager with encrypted vault storage and JWT authenticatio
 ## Features
 
 - Fernet-encrypted password storage
-- JWT-based authentication with auto-logout on expiry
+- JWT-based authentication with auto-logout on expired token
 - Two-step login flow with master password
-- Password categories (Website / Wi-Fi)
-- Soft delete with a Recently Deleted bin and restore support
+- Soft delete implementation and restore support
 - Password strength meter and secure password generator
 - Password reuse prevention across account history
 - Profile page with name editing and master password change
