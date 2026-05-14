@@ -62,7 +62,7 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
 
   return (
     <div className="profile-page">
-      <h1>Profile</h1>
+      <h1><strong>Profile</strong></h1>
 
       <section className="profile-section">
         <h2>Personal information</h2>
