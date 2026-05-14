@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from jose import JWTError
 from fastapi.security import OAuth2PasswordBearer
+from datetime import datetime, timedelta
+import uuid
 
 from sqlalchemy import text
 import models, schemas, auth, crypto
@@ -72,6 +74,33 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user                                                                                                                                                                                       
    
+@app.post("/auth/forgot-password")
+def forgot_password(data: schemas.ForgotPassword, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
+    if not user:
+        return {"token": None}
+    token = str(uuid.uuid4())
+    expires_at = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    db.add(models.PasswordReset(email=data.email, token=token, expires_at=expires_at))
+    db.commit()
+    return {"token": token}
+
+@app.post("/auth/reset-password")
+def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_db)):
+    if data.new_password != data.confirm:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    reset = db.query(models.PasswordReset).filter(
+        models.PasswordReset.token == data.token,
+        models.PasswordReset.used == False
+    ).first()
+    if not reset or datetime.utcnow().isoformat() > reset.expires_at:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    user = db.query(models.User).filter(models.User.email == reset.email).first()
+    user.password_hash = auth.hash_password(data.new_password)
+    reset.used = True
+    db.commit()
+    return {"message": "Password reset successfully"}
+
 @app.post("/auth/lookup", response_model=schemas.UserLookupResponse)
 def lookup_user(data: schemas.UserLookup, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == data.email).first()

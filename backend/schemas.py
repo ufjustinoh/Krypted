@@ -41,6 +41,14 @@ class Token(BaseModel):
     access_token: str
     token_type: str        # will always be "bearer"
 
+class ForgotPassword(BaseModel):
+    email: str
+
+class ResetPassword(BaseModel):
+    token: str
+    new_password: str
+    confirm: str
+
 class PasswordEntryCreate(BaseModel):
     site: str
     username: str

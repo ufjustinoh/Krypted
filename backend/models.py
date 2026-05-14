@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -25,4 +25,14 @@ class PasswordEntry(Base):
     username = Column(String, nullable = False)
     encrypted_password = Column(String, nullable = False)                   # store encrypted password
 
-    owner = relationship("User", back_populates = "passwords")              # lets us do entry. owner to get the user who owns it
+    owner = relationship("User", back_populates = "passwords")
+
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String, nullable=False)
+    token = Column(String, unique=True, nullable=False)
+    expires_at = Column(String, nullable=False)
+    used = Column(Boolean, default=False)

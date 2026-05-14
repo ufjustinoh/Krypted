@@ -20,6 +20,22 @@ async function request(path, options = {}) {
 }
 
 // Calls POST /auth/register with email + password
+export function forgotPassword(email) {
+    return request('/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+    })
+}
+
+export function resetPassword(token, newPassword, confirm) {
+    return request('/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password: newPassword, confirm }),
+    })
+}
+
 export function lookupUser(email) {
     return request('/auth/lookup', {
         method: 'POST',
