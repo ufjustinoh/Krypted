@@ -1,6 +1,6 @@
 # Krypted
 
-A full-stack password manager with encrypted vault storage, JWT authentication, and a dark purple UI.
+A full-stack password manager with encrypted vault storage and JWT authentication
 
 ![Python](https://img.shields.io/badge/Python-FastAPI-blue?style=flat-square)
 ![React](https://img.shields.io/badge/Frontend-React-61dafb?style=flat-square)
