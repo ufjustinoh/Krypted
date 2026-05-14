@@ -767,3 +767,90 @@ button:disabled {
   font-size: 14px;
   margin: 0;
 }
+
+/* ── Section filter buttons ── */
+
+.section-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.section-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.section-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-h);
+  opacity: 1;
+}
+
+.section-btn.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+}
+
+.section-btn-danger.active {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
+}
+
+/* ── Recently Deleted toolbar ── */
+
+.deleted-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 16px;
+}
+
+.deleted-hint {
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ── Category toggle (Add/Edit forms) ── */
+
+.category-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.category-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.category-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-h);
+  opacity: 1;
+}
+
+.category-btn.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}

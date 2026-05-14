@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getPasswords, createPassword, updatePassword, deletePassword } from '../api'
+import { getPasswords, createPassword, updatePassword, deletePassword, getDeletedPasswords, restorePassword, permanentDeletePassword, clearAllDeleted } from '../api'
 import AddPasswordPage from './AddPasswordPage'
 import EditPasswordPage from './EditPasswordPage'
 import ProfilePage from './ProfilePage'
@@ -45,6 +45,12 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
   // search query for filtering the password list
   const [search, setSearch] = useState('')
 
+  // section filter: null = all, 'websites', 'wifi', 'deleted'
+  const [section, setSection] = useState(null)
+  const [deletedPasswords, setDeletedPasswords] = useState([])
+  const [loadingDeleted, setLoadingDeleted] = useState(false)
+  const [confirmClearAll, setConfirmClearAll] = useState(false)
+
   function handleApiError(err) {
     if (err.status === 401) {
       onLogout()
@@ -79,11 +85,61 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
     }
   }
 
+  async function loadDeletedPasswords() {
+    setLoadingDeleted(true)
+    try {
+      const data = await getDeletedPasswords(token)
+      setDeletedPasswords(data)
+    } catch (err) {
+      handleApiError(err)
+    } finally {
+      setLoadingDeleted(false)
+    }
+  }
+
+  function handleSectionClick(s) {
+    setSection(prev => {
+      const next = prev === s ? null : s
+      if (next === 'deleted') loadDeletedPasswords()
+      return next
+    })
+  }
+
   async function handleDelete(id) {
     try {
       await deletePassword(token, id)
       setPasswords(prev => prev.filter(p => p.id !== id))
       setVisibleIds(prev => { const s = new Set(prev); s.delete(id); return s })
+    } catch (err) {
+      handleApiError(err)
+    }
+  }
+
+  async function handleRestore(id) {
+    try {
+      await restorePassword(token, id)
+      const restored = deletedPasswords.find(p => p.id === id)
+      setDeletedPasswords(prev => prev.filter(p => p.id !== id))
+      if (restored) setPasswords(prev => [...prev, { ...restored, deleted_at: null }])
+    } catch (err) {
+      handleApiError(err)
+    }
+  }
+
+  async function handlePermanentDelete(id) {
+    try {
+      await permanentDeletePassword(token, id)
+      setDeletedPasswords(prev => prev.filter(p => p.id !== id))
+    } catch (err) {
+      handleApiError(err)
+    }
+  }
+
+  async function handleClearAll() {
+    try {
+      await clearAllDeleted(token)
+      setDeletedPasswords([])
+      setConfirmClearAll(false)
     } catch (err) {
       handleApiError(err)
     }
@@ -114,12 +170,15 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
     })
   }
 
-  const filtered = passwords.filter(p =>
-    p.site.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = passwords.filter(p => {
+    if (!p.site.toLowerCase().includes(search.toLowerCase())) return false
+    if (section === 'websites') return p.category === 'website'
+    if (section === 'wifi') return p.category === 'wifi'
+    return true
+  })
 
   if (showForm) {
-    return <AddPasswordPage onSave={handleAdd} onCancel={() => setShowForm(false)} />
+    return <AddPasswordPage onSave={handleAdd} onCancel={() => setShowForm(false)} defaultCategory={section === 'wifi' ? 'wifi' : 'website'} />
   }
 
   if (editingEntry) {
@@ -177,88 +236,172 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
       <div className="dashboard-body">
         <div className="toolbar">
-<input
+          <input
             className="search-input"
             placeholder="Search by site..."
             value={search}
             onChange={e => setSearch(e.target.value)}
+            disabled={section === 'deleted'}
           />
-          <button onClick={() => setShowForm(true)}>+ Add Password</button>
+          {section !== 'deleted' && (
+            <button onClick={() => setShowForm(true)}>+ Add Password</button>
+          )}
+        </div>
+
+        <div className="section-filters">
+          <button
+            className={`section-btn ${section === 'websites' ? 'active' : ''}`}
+            onClick={() => handleSectionClick('websites')}
+          >
+            🌐 Websites
+          </button>
+          <button
+            className={`section-btn ${section === 'wifi' ? 'active' : ''}`}
+            onClick={() => handleSectionClick('wifi')}
+          >
+            📶 Wi-Fi
+          </button>
+          <button
+            className={`section-btn section-btn-danger ${section === 'deleted' ? 'active' : ''}`}
+            onClick={() => handleSectionClick('deleted')}
+          >
+            🗑 Recently Deleted
+          </button>
         </div>
 
         {loading && <p className="muted">Loading...</p>}
         {error && <p className="error">{error}</p>}
 
-        {/* empty state */}
-        {!loading && passwords.length === 0 && (
-          <p className="muted empty">No passwords saved yet. Add one above.</p>
+        {/* Recently Deleted view */}
+        {section === 'deleted' && (
+          <>
+            {loadingDeleted && <p className="muted">Loading...</p>}
+            {!loadingDeleted && deletedPasswords.length === 0 && (
+              <p className="muted empty">No deleted passwords.</p>
+            )}
+            {!loadingDeleted && deletedPasswords.length > 0 && (
+              <>
+                <div className="deleted-toolbar">
+                  <p className="muted deleted-hint">Deleted passwords are kept here until you remove them permanently.</p>
+                  <button className="btn-danger" onClick={() => setConfirmClearAll(true)}>Clear All</button>
+                </div>
+                <table className="password-table">
+                  <thead>
+                    <tr>
+                      <th>Site</th>
+                      <th>Username</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deletedPasswords.map(p => (
+                      <tr key={p.id}>
+                        <td>
+                          <span className="site-cell">
+                            <img src={faviconUrl(p.site)} width="16" height="16" alt="" onError={e => { e.target.style.display = 'none' }} />
+                            {capitalize(p.site)}
+                          </span>
+                        </td>
+                        <td>{p.username}</td>
+                        <td className="row-actions">
+                          <button className="btn-ghost small" onClick={() => handleRestore(p.id)}>Restore</button>
+                          <button className="btn-danger" onClick={() => handlePermanentDelete(p.id)}>Delete Permanently</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </>
         )}
 
-        {!loading && passwords.length > 0 && filtered.length === 0 && (
-          <p className="muted empty">No entries match "{search}".</p>
-        )}
+        {/* Normal vault view */}
+        {section !== 'deleted' && (
+          <>
+            {!loading && passwords.length === 0 && (
+              <p className="muted empty">No passwords saved yet. Add one above.</p>
+            )}
 
-        {/* password table — only renders when there's at least one match */}
-        {filtered.length > 0 && (
-          <table className="password-table">
-            <thead>
-              <tr>
-                <th>Site</th>
-                <th>Username</th>
-                <th>Password</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(p => (
-                <tr key={p.id}>
-                  <td>
-                    <span className="site-cell">
-                      <img
-                        src={faviconUrl(p.site)}
-                        width="16"
-                        height="16"
-                        alt=""
-                        onError={e => { e.target.style.display = 'none' }}
-                      />
-                      {capitalize(p.site)}
-                    </span>
-                  </td>
-                  <td>{p.username}</td>
-                  <td>
-                    <span className="password-cell">
-                      <button className="btn-icon" title="Copy password" onClick={() => handleCopy(p.id, p.password)}>
-                        {copiedId === p.id ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
-                        )}
-                      </button>
-                      {visibleIds.has(p.id) ? p.password : '••••••••'}
-                      <button className="btn-ghost small" onClick={() => toggleVisible(p.id)}>
-                        {visibleIds.has(p.id) ? 'Hide' : 'Show'}
-                      </button>
-                    </span>
-                  </td>
-                  <td className="row-actions">
-                    <button className="btn-ghost small" onClick={() => setEditingEntry(p)}>Edit</button>
-                    <button className="btn-danger" onClick={() => setConfirmDeleteId(p.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            {!loading && passwords.length > 0 && filtered.length === 0 && (
+              <p className="muted empty">No entries match "{search}".</p>
+            )}
+
+            {filtered.length > 0 && (
+              <table className="password-table">
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>Username</th>
+                    <th>Password</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(p => (
+                    <tr key={p.id}>
+                      <td>
+                        <span className="site-cell">
+                          <img
+                            src={faviconUrl(p.site)}
+                            width="16"
+                            height="16"
+                            alt=""
+                            onError={e => { e.target.style.display = 'none' }}
+                          />
+                          {capitalize(p.site)}
+                        </span>
+                      </td>
+                      <td>{p.username}</td>
+                      <td>
+                        <span className="password-cell">
+                          <button className="btn-icon" title="Copy password" onClick={() => handleCopy(p.id, p.password)}>
+                            {copiedId === p.id ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                            )}
+                          </button>
+                          {visibleIds.has(p.id) ? p.password : '••••••••'}
+                          <button className="btn-ghost small" onClick={() => toggleVisible(p.id)}>
+                            {visibleIds.has(p.id) ? 'Hide' : 'Show'}
+                          </button>
+                        </span>
+                      </td>
+                      <td className="row-actions">
+                        <button className="btn-ghost small" onClick={() => setEditingEntry(p)}>Edit</button>
+                        <button className="btn-danger" onClick={() => setConfirmDeleteId(p.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
         )}
       </div>
 
       {confirmDeleteId !== null && (
         <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h2>Delete password?</h2>
-            <p>This will permanently delete the entry for <strong>{passwords.find(p => p.id === confirmDeleteId)?.site}</strong>. This can't be undone.</p>
+            <h2>Move to trash?</h2>
+            <p>The entry for <strong>{passwords.find(p => p.id === confirmDeleteId)?.site}</strong> will be moved to Recently Deleted. You can restore it from there.</p>
             <div className="modal-actions">
               <button className="btn-ghost" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
-              <button className="btn-danger" onClick={() => { handleDelete(confirmDeleteId); setConfirmDeleteId(null) }}>Delete</button>
+              <button className="btn-danger" onClick={() => { handleDelete(confirmDeleteId); setConfirmDeleteId(null) }}>Move to Trash</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmClearAll && (
+        <div className="modal-overlay" onClick={() => setConfirmClearAll(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Clear all deleted?</h2>
+            <p>This will permanently delete all {deletedPasswords.length} items in your trash. This can't be undone.</p>
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => setConfirmClearAll(false)}>Cancel</button>
+              <button className="btn-danger" onClick={handleClearAll}>Delete All Permanently</button>
             </div>
           </div>
         </div>

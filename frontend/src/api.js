@@ -92,9 +92,36 @@ export function updatePassword(token, id, entry) {
     })
 }
 
-// Calls DELETE /passwords/{id} — removes a specific password entry by its id
+// Moves a password to trash (soft delete)
 export function deletePassword(token, id) {
     return request(`/passwords/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+    })
+}
+
+export function getDeletedPasswords(token) {
+    return request('/passwords/deleted', {
+        headers: { Authorization: `Bearer ${token}` },
+    })
+}
+
+export function restorePassword(token, id) {
+    return request(`/passwords/${id}/restore`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+    })
+}
+
+export function permanentDeletePassword(token, id) {
+    return request(`/passwords/${id}/permanent`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+    })
+}
+
+export function clearAllDeleted(token) {
+    return request('/passwords/trash', {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
     })

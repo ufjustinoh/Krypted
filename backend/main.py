@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from jose import JWTError
 from fastapi.security import OAuth2PasswordBearer
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from sqlalchemy import text
@@ -15,6 +15,8 @@ models.Base.metadata.create_all(bind = engine)
 with engine.connect() as conn:
     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR"))
     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR"))
+    conn.execute(text("ALTER TABLE passwords ADD COLUMN IF NOT EXISTS category VARCHAR DEFAULT 'website'"))
+    conn.execute(text("ALTER TABLE passwords ADD COLUMN IF NOT EXISTS deleted_at VARCHAR"))
     conn.commit()
 
 def is_password_reused(new_password: str, user: models.User, db: Session) -> bool:
@@ -89,7 +91,7 @@ def forgot_password(data: schemas.ForgotPassword, db: Session = Depends(get_db))
     if not user:
         return {"token": None}
     token = str(uuid.uuid4())
-    expires_at = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     db.add(models.PasswordReset(email=data.email, token=token, expires_at=expires_at))
     db.commit()
     return {"token": token}
@@ -102,7 +104,7 @@ def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_db)):
         models.PasswordReset.token == data.token,
         models.PasswordReset.used == False
     ).first()
-    if not reset or datetime.utcnow().isoformat() > reset.expires_at:
+    if not reset or datetime.now(timezone.utc).isoformat() > reset.expires_at:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
     user = db.query(models.User).filter(models.User.email == reset.email).first()
     if is_password_reused(data.new_password, user, db):
@@ -129,26 +131,39 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 """
 Password Routes
 """
-@app.get("/passwords", response_model=list[schemas.PasswordEntryResponse])                                                                                                                                
+@app.get("/passwords", response_model=list[schemas.PasswordEntryResponse])
 def get_passwords(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    entries = db.query(models.PasswordEntry).filter(models.PasswordEntry.user_id == current_user.id).all()                                                                                                
-    result = []                                           
-    for entry in entries:                                                                                                                                                                                 
-        result.append({
-            "id": entry.id,
-            "site": entry.site,
-            "username": crypto.decrypt_safe(entry.username),
-            "password": crypto.decrypt_password(entry.encrypted_password)
-        })
-    return result
+    entries = db.query(models.PasswordEntry).filter(
+        models.PasswordEntry.user_id == current_user.id,
+        models.PasswordEntry.deleted_at == None
+    ).all()
+    return [{"id": e.id, "site": e.site, "username": crypto.decrypt_safe(e.username), "password": crypto.decrypt_password(e.encrypted_password), "category": e.category or 'website'} for e in entries]
+
+@app.get("/passwords/deleted", response_model=list[schemas.PasswordEntryResponse])
+def get_deleted_passwords(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    entries = db.query(models.PasswordEntry).filter(
+        models.PasswordEntry.user_id == current_user.id,
+        models.PasswordEntry.deleted_at != None
+    ).all()
+    return [{"id": e.id, "site": e.site, "username": crypto.decrypt_safe(e.username), "password": crypto.decrypt_password(e.encrypted_password), "category": e.category or 'website'} for e in entries]
                                                                                                                                                                                                             
+@app.delete("/passwords/trash")
+def clear_trash(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    db.query(models.PasswordEntry).filter(
+        models.PasswordEntry.user_id == current_user.id,
+        models.PasswordEntry.deleted_at != None
+    ).delete()
+    db.commit()
+    return {"message": "Trash cleared"}
+
 @app.post("/passwords", response_model=schemas.PasswordEntryResponse)
 def create_password(entry: schemas.PasswordEntryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):                                                            
     new_entry = models.PasswordEntry(
         user_id=current_user.id,
         site=entry.site,
         username=crypto.encrypt_password(entry.username),
-        encrypted_password=crypto.encrypt_password(entry.password)
+        encrypted_password=crypto.encrypt_password(entry.password),
+        category=entry.category
     )                                                                                                                                                                                                     
     db.add(new_entry)
     db.commit()                                                                                                                                                                                           
@@ -171,6 +186,7 @@ def update_password(entry_id: int, entry: schemas.PasswordEntryUpdate, db: Sessi
     db_entry.site = entry.site
     db_entry.username = crypto.encrypt_password(entry.username)
     db_entry.encrypted_password = crypto.encrypt_password(entry.password)
+    db_entry.category = entry.category
     db.commit()
     db.refresh(db_entry)
     return {"id": db_entry.id, "site": db_entry.site, "username": entry.username, "password": entry.password}
@@ -183,9 +199,34 @@ def delete_password(entry_id: int, db: Session = Depends(get_db), current_user: 
     ).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
+    entry.deleted_at = datetime.now(timezone.utc).isoformat()
+    db.commit()
+    return {"message": "Password moved to trash"}
+
+@app.post("/passwords/{entry_id}/restore")
+def restore_password(entry_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    entry = db.query(models.PasswordEntry).filter(
+        models.PasswordEntry.id == entry_id,
+        models.PasswordEntry.user_id == current_user.id,
+        models.PasswordEntry.deleted_at != None
+    ).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    entry.deleted_at = None
+    db.commit()
+    return {"message": "Password restored"}
+
+@app.delete("/passwords/{entry_id}/permanent")
+def permanent_delete_password(entry_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    entry = db.query(models.PasswordEntry).filter(
+        models.PasswordEntry.id == entry_id,
+        models.PasswordEntry.user_id == current_user.id
+    ).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
     db.delete(entry)
     db.commit()
-    return {"message": "Password deleted"}
+    return {"message": "Password permanently deleted"}
 
 """
 Profile Routes

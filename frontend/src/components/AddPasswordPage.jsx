@@ -86,8 +86,8 @@ function generatePassword(opts) {
   return all.join('')
 }
 
-export default function AddPasswordPage({ onSave, onCancel }) {
-  const [form, setForm] = useState({ site: '', username: '', password: '', confirm: '' })
+export default function AddPasswordPage({ onSave, onCancel, defaultCategory = 'website' }) {
+  const [form, setForm] = useState({ site: '', username: '', password: '', confirm: '', category: defaultCategory })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState('')
@@ -119,7 +119,7 @@ export default function AddPasswordPage({ onSave, onCancel }) {
     setError('')
     setSubmitting(true)
     try {
-      await onSave({ site: form.site, username: form.username, password: form.password })
+      await onSave({ site: form.site, username: form.username, password: form.password, category: form.category })
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
@@ -136,6 +136,26 @@ export default function AddPasswordPage({ onSave, onCancel }) {
 
       <div className="add-page-body">
         <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Category</label>
+            <div className="category-toggle">
+              <button
+                type="button"
+                className={`category-btn ${form.category === 'website' ? 'active' : ''}`}
+                onClick={() => setForm(f => ({ ...f, category: 'website' }))}
+              >
+                🌐 Website
+              </button>
+              <button
+                type="button"
+                className={`category-btn ${form.category === 'wifi' ? 'active' : ''}`}
+                onClick={() => setForm(f => ({ ...f, category: 'wifi' }))}
+              >
+                📶 Wi-Fi
+              </button>
+            </div>
+          </div>
+
           <div className="field">
             <label>Site</label>
             <input

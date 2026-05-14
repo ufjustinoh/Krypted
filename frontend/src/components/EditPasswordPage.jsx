@@ -82,6 +82,7 @@ export default function EditPasswordPage({ entry, onSave, onCancel }) {
     username: entry.username,
     password: entry.password,
     confirm: entry.password,
+    category: entry.category || 'website',
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -114,7 +115,7 @@ export default function EditPasswordPage({ entry, onSave, onCancel }) {
     setError('')
     setSubmitting(true)
     try {
-      await onSave({ site: form.site, username: form.username, password: form.password })
+      await onSave({ site: form.site, username: form.username, password: form.password, category: form.category })
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
@@ -131,6 +132,26 @@ export default function EditPasswordPage({ entry, onSave, onCancel }) {
 
       <div className="add-page-body">
         <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Category</label>
+            <div className="category-toggle">
+              <button
+                type="button"
+                className={`category-btn ${form.category === 'website' ? 'active' : ''}`}
+                onClick={() => setForm(f => ({ ...f, category: 'website' }))}
+              >
+                🌐 Website
+              </button>
+              <button
+                type="button"
+                className={`category-btn ${form.category === 'wifi' ? 'active' : ''}`}
+                onClick={() => setForm(f => ({ ...f, category: 'wifi' }))}
+              >
+                📶 Wi-Fi
+              </button>
+            </div>
+          </div>
+
           <div className="field">
             <label>Site</label>
             <input
