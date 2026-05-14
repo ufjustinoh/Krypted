@@ -28,10 +28,12 @@ function Navbar() {
   )
 }
 
-function LockCard({ children }) {
+function LockCard({ heading, children }) {
   return (
     <div className="lock-wrapper">
-      <div className="lock-shackle" />
+      <div className="lock-shackle">
+        <span className="lock-heading">{heading}</span>
+      </div>
       <div className="auth-card">{children}</div>
     </div>
   )
@@ -117,8 +119,7 @@ export default function AuthPage({ onLogin }) {
       <div className="auth-page">
         <Navbar />
         <div className="auth-content">
-          <h2 className="auth-heading">Log in to your Vault</h2>
-          <LockCard>
+          <LockCard heading="Log in to your Vault">
             <form onSubmit={handleContinue}>
               <input
                 type="email"
@@ -166,8 +167,7 @@ export default function AuthPage({ onLogin }) {
       <div className="auth-page">
         <Navbar />
         <div className="auth-content">
-          <h2 className="auth-heading">Create your account</h2>
-          <LockCard>
+          <LockCard heading="Create your account">
             <button className="auth-back" onClick={goBack}>← Back to Log in</button>
             <form onSubmit={handleRegister}>
               <div className="name-row">
@@ -227,8 +227,7 @@ export default function AuthPage({ onLogin }) {
     <div className="auth-page">
       <Navbar />
       <div className="auth-content">
-        <h2 className="auth-heading">Welcome back, {lookedUpName || email.split('@')[0]}</h2>
-        <LockCard>
+        <LockCard heading={`Welcome back, ${lookedUpName || email.split('@')[0]}`}>
           <button className="auth-back" onClick={goBack}>← Back to Log in</button>
           <form onSubmit={handleLogin}>
             <input
