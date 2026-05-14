@@ -21,6 +21,7 @@
 
 .auth-content {
   flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -28,6 +29,25 @@
   padding: 24px;
   gap: 16px;
   background: radial-gradient(ellipse at center, rgba(120, 40, 200, 0.12) 0%, transparent 65%);
+  overflow: hidden;
+}
+
+.bg-key {
+  position: absolute;
+  width: 75vw;
+  height: 75vw;
+  max-width: 700px;
+  max-height: 700px;
+  color: rgba(139, 0, 255, 0.07);
+  transform: rotate(-35deg);
+  pointer-events: none;
+  z-index: 0;
+  filter: drop-shadow(0 0 18px rgba(139, 0, 255, 0.15));
+}
+
+.auth-content > *:not(.bg-key) {
+  position: relative;
+  z-index: 1;
 }
 
 .auth-heading {

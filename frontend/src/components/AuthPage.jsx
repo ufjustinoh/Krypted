@@ -28,6 +28,16 @@ function Navbar() {
   )
 }
 
+function BackgroundKey() {
+  return (
+    <svg className="bg-key" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="7.5" cy="15.5" r="5.5"/>
+      <path d="m21 2-9.6 9.6"/>
+      <path d="m15.5 7.5 3 3L22 7l-3-3"/>
+    </svg>
+  )
+}
+
 export default function AuthPage({ onLogin }) {
   const [step, setStep] = useState('email')
   const [email, setEmail] = useState(() => localStorage.getItem('rememberedEmail') || '')
@@ -109,6 +119,7 @@ export default function AuthPage({ onLogin }) {
       <div className="auth-page">
         <Navbar />
         <div className="auth-content">
+          <BackgroundKey />
           <h2 className="auth-heading">Log in to your Vault</h2>
           <div className="auth-card">
             <form onSubmit={handleContinue}>
@@ -158,6 +169,7 @@ export default function AuthPage({ onLogin }) {
       <div className="auth-page">
         <Navbar />
         <div className="auth-content">
+          <BackgroundKey />
           <h2 className="auth-heading">Create your account</h2>
           <div className="auth-card">
             <button className="auth-back" onClick={goBack}>← Back to Log in</button>
