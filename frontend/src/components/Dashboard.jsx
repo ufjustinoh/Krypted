@@ -16,6 +16,7 @@ function capitalize(str) {
 
 export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
   const [view, setView] = useState('vault')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   // the list of saved passwords fetched from the backend
   const [passwords, setPasswords] = useState([])
@@ -133,27 +134,34 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
   return (
     <div className="dashboard">
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
         <div className="sidebar-brand">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Krypted
+          {sidebarOpen && <span className="sidebar-brand-text">Krypted</span>}
+          <button className="sidebar-toggle" onClick={() => setSidebarOpen(o => !o)} title={sidebarOpen ? 'Collapse' : 'Expand'}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {sidebarOpen
+                ? <><polyline points="15 18 9 12 15 6"/></>
+                : <><polyline points="9 18 15 12 9 6"/></>}
+            </svg>
+          </button>
         </div>
 
         <nav className="sidebar-nav">
-          <button className={`sidebar-item ${view === 'vault' ? 'active' : ''}`} onClick={() => setView('vault')}>
+          <button className={`sidebar-item ${view === 'vault' ? 'active' : ''}`} onClick={() => setView('vault')} title="Vault">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-            Vault
+            {sidebarOpen && <span>Vault</span>}
           </button>
-          <button className={`sidebar-item ${view === 'profile' ? 'active' : ''}`} onClick={() => setView('profile')}>
+          <button className={`sidebar-item ${view === 'profile' ? 'active' : ''}`} onClick={() => setView('profile')} title="Profile">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-            Profile
+            {sidebarOpen && <span>Profile</span>}
           </button>
         </nav>
 
         <div className="sidebar-footer">
-          <button className="sidebar-item" onClick={onLogout}>
+          <button className="sidebar-item" onClick={onLogout} title="Logout">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Logout
+            {sidebarOpen && <span>Logout</span>}
           </button>
         </div>
       </aside>
