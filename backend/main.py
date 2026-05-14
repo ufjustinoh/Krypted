@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from jose import JWTError
 from fastapi.security import OAuth2PasswordBearer
 from datetime import datetime, timedelta, timezone
 import uuid
+import re
 
 from sqlalchemy import text
 import models, schemas, auth, crypto
@@ -27,6 +28,13 @@ def is_password_reused(new_password: str, user: models.User, db: Session) -> boo
 
 def archive_password(user: models.User, db: Session):
     db.add(models.PasswordHistory(user_id=user.id, password_hash=user.password_hash))
+
+def normalize_site(site: str) -> str:
+    s = site.strip()
+    s = re.sub(r'^https?://', '', s)
+    s = re.sub(r'^www\.', '', s, flags=re.IGNORECASE)
+    s = s.rstrip('/')
+    return s
 
 app = FastAPI()                                                     # create the app
 app.add_middleware(     
@@ -132,19 +140,29 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 Password Routes
 """
 @app.get("/passwords", response_model=list[schemas.PasswordEntryResponse])
-def get_passwords(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_passwords(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     entries = db.query(models.PasswordEntry).filter(
         models.PasswordEntry.user_id == current_user.id,
         models.PasswordEntry.deleted_at == None
-    ).all()
+    ).offset(skip).limit(limit).all()
     return [{"id": e.id, "site": e.site, "username": crypto.decrypt_safe(e.username), "password": crypto.decrypt_password(e.encrypted_password), "category": e.category or 'website'} for e in entries]
 
 @app.get("/passwords/deleted", response_model=list[schemas.PasswordEntryResponse])
-def get_deleted_passwords(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_deleted_passwords(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     entries = db.query(models.PasswordEntry).filter(
         models.PasswordEntry.user_id == current_user.id,
         models.PasswordEntry.deleted_at != None
-    ).all()
+    ).offset(skip).limit(limit).all()
     return [{"id": e.id, "site": e.site, "username": crypto.decrypt_safe(e.username), "password": crypto.decrypt_password(e.encrypted_password), "category": e.category or 'website'} for e in entries]
                                                                                                                                                                                                             
 @app.delete("/passwords/trash")
@@ -160,7 +178,7 @@ def clear_trash(db: Session = Depends(get_db), current_user: models.User = Depen
 def create_password(entry: schemas.PasswordEntryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):                                                            
     new_entry = models.PasswordEntry(
         user_id=current_user.id,
-        site=entry.site,
+        site=normalize_site(entry.site),
         username=crypto.encrypt_password(entry.username),
         encrypted_password=crypto.encrypt_password(entry.password),
         category=entry.category
@@ -183,7 +201,7 @@ def update_password(entry_id: int, entry: schemas.PasswordEntryUpdate, db: Sessi
     ).first()
     if not db_entry:
         raise HTTPException(status_code=404, detail="Entry not found")
-    db_entry.site = entry.site
+    db_entry.site = normalize_site(entry.site)
     db_entry.username = crypto.encrypt_password(entry.username)
     db_entry.encrypted_password = crypto.encrypt_password(entry.password)
     db_entry.category = entry.category
