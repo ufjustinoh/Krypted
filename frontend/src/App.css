@@ -713,16 +713,19 @@ button:disabled {
 /* ── Profile Page ── */
 
 .profile-page {
-  padding: 40px;
-  max-width: 600px;
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  box-sizing: border-box;
 }
 
-.profile-page h1 {
-  font-size: 22px;
-  margin: 0 0 32px;
-  letter-spacing: -0.3px;
+.profile-page .dashboard-header {
+  margin-bottom: 0;
+}
+
+.profile-body {
+  padding: 32px 40px;
+  max-width: 600px;
+  box-sizing: border-box;
 }
 
 .profile-section {

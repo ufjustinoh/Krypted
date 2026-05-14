@@ -62,8 +62,11 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
 
   return (
     <div className="profile-page">
-      <h1><strong>Profile</strong></h1>
+      <header className="dashboard-header">
+        <h1><strong>Profile</strong></h1>
+      </header>
 
+      <div className="profile-body">
       <section className="profile-section">
         <h2>Personal information</h2>
         <form onSubmit={handleProfileSave}>
@@ -138,6 +141,7 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
           </button>
         </form>
       </section>
+      </div>
     </div>
   )
 }
