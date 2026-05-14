@@ -172,7 +172,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
       )}
       {view === 'vault' && (<>
       <header className="dashboard-header">
-        <h1><strong>Master Vault</strong></h1>
+        <h1><strong>Vault</strong></h1>
       </header>
 
       <div className="dashboard-body">
