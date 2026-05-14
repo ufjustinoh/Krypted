@@ -28,13 +28,12 @@ function Navbar() {
   )
 }
 
-function BackgroundKey() {
+function LockCard({ children }) {
   return (
-    <svg className="bg-key" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="7.5" cy="15.5" r="5.5"/>
-      <path d="m21 2-9.6 9.6"/>
-      <path d="m15.5 7.5 3 3L22 7l-3-3"/>
-    </svg>
+    <div className="lock-wrapper">
+      <div className="lock-shackle" />
+      <div className="auth-card">{children}</div>
+    </div>
   )
 }
 
@@ -47,7 +46,6 @@ export default function AuthPage({ onLogin }) {
   const [rememberEmail, setRememberEmail] = useState(() => !!localStorage.getItem('rememberedEmail'))
   const [lookedUpName, setLookedUpName] = useState('')
 
-  // register-only fields
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -119,9 +117,8 @@ export default function AuthPage({ onLogin }) {
       <div className="auth-page">
         <Navbar />
         <div className="auth-content">
-          <BackgroundKey />
           <h2 className="auth-heading">Log in to your Vault</h2>
-          <div className="auth-card">
+          <LockCard>
             <form onSubmit={handleContinue}>
               <input
                 type="email"
@@ -158,7 +155,7 @@ export default function AuthPage({ onLogin }) {
               Don't have an account?{' '}
               <button type="button" onClick={goToRegister}>Register</button>
             </p>
-          </div>
+          </LockCard>
         </div>
       </div>
     )
@@ -169,9 +166,8 @@ export default function AuthPage({ onLogin }) {
       <div className="auth-page">
         <Navbar />
         <div className="auth-content">
-          <BackgroundKey />
           <h2 className="auth-heading">Create your account</h2>
-          <div className="auth-card">
+          <LockCard>
             <button className="auth-back" onClick={goBack}>← Back to Log in</button>
             <form onSubmit={handleRegister}>
               <div className="name-row">
@@ -221,7 +217,7 @@ export default function AuthPage({ onLogin }) {
               Already have an account?{' '}
               <button type="button" onClick={goBack}>Sign in</button>
             </p>
-          </div>
+          </LockCard>
         </div>
       </div>
     )
@@ -232,7 +228,7 @@ export default function AuthPage({ onLogin }) {
       <Navbar />
       <div className="auth-content">
         <h2 className="auth-heading">Welcome back, {lookedUpName || email.split('@')[0]}</h2>
-        <div className="auth-card">
+        <LockCard>
           <button className="auth-back" onClick={goBack}>← Back to Log in</button>
           <form onSubmit={handleLogin}>
             <input
@@ -252,7 +248,7 @@ export default function AuthPage({ onLogin }) {
             Don't have an account?{' '}
             <button type="button" onClick={goToRegister}>Register</button>
           </p>
-        </div>
+        </LockCard>
       </div>
     </div>
   )
