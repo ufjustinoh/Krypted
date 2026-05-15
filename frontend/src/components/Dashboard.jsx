@@ -82,7 +82,8 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
       setPasswords(prev => [...prev, entry])
       setShowForm(false)
     } catch (err) {
-      handleApiError(err)
+      if (err.status === 401) onLogout()
+      else throw err
     }
   }
 

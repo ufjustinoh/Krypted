@@ -122,6 +122,7 @@ export default function AddPasswordPage({ onSave, onCancel, defaultCategory = 'w
       await onSave({ site: form.site, username: form.username, password: form.password, category: form.category })
     } catch (err) {
       setError(err.message)
+    } finally {
       setSubmitting(false)
     }
   }
