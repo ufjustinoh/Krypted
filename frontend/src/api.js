@@ -4,7 +4,7 @@ const BASE = 'https://passwordmanager-owfm.onrender.com'
 // Reusable helper — all API functions use this instead of writing fetch() every time
 async function request(path, options = {}) {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 15000)
+    const timer = setTimeout(() => controller.abort(), 60000)
     try {
         const res = await fetch(`${BASE}${path}`, { ...options, signal: controller.signal })
         const data = await res.json()
@@ -12,7 +12,9 @@ async function request(path, options = {}) {
         if (!res.ok) throw new Error(data.detail || 'Request failed')
         return data
     } catch (err) {
-        if (err.name === 'AbortError') throw new Error('Request timed out — the server may be waking up, please try again')
+        if (err.name === 'AbortError' || err.message === 'Failed to fetch') {
+            throw new Error('Unable to reach the server — it may be waking up. Please wait a moment and try again.')
+        }
         throw err
     } finally {
         clearTimeout(timer)

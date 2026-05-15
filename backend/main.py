@@ -187,11 +187,12 @@ def create_password(entry: schemas.PasswordEntryCreate, db: Session = Depends(ge
     db.commit()                                                                                                                                                                                           
     db.refresh(new_entry)                                 
     return {
-        "id": new_entry.id,                                                                                                                                                                               
+        "id": new_entry.id,
         "site": new_entry.site,
-        "username": new_entry.username,                                                                                                                                                                   
-        "password": entry.password  # return the original plain text password
-    }                                                                                                                                                                                                     
+        "username": entry.username,
+        "password": entry.password,
+        "category": new_entry.category,
+    }
    
 @app.put("/passwords/{entry_id}", response_model=schemas.PasswordEntryResponse)
 def update_password(entry_id: int, entry: schemas.PasswordEntryUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -207,7 +208,7 @@ def update_password(entry_id: int, entry: schemas.PasswordEntryUpdate, db: Sessi
     db_entry.category = entry.category
     db.commit()
     db.refresh(db_entry)
-    return {"id": db_entry.id, "site": db_entry.site, "username": entry.username, "password": entry.password}
+    return {"id": db_entry.id, "site": db_entry.site, "username": entry.username, "password": entry.password, "category": db_entry.category}
 
 @app.delete("/passwords/{entry_id}")
 def delete_password(entry_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

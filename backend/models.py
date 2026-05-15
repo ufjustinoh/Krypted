@@ -19,11 +19,13 @@ class User(Base):
 class PasswordEntry(Base):
     __tablename__ = "passwords"                                             
 
-    id = Column(Integer, primary_key = True)                                # unique id for each entry, auto increment
-    user_id = Column(Integer, ForeignKey("users.id"), nullable = False)     # link entry to a user 
-    site = Column(String, nullable = False)                                 
+    id = Column(Integer, primary_key = True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable = False)
+    site = Column(String, nullable = False)
     username = Column(String, nullable = False)
-    encrypted_password = Column(String, nullable = False)                   # store encrypted password
+    encrypted_password = Column(String, nullable = False)
+    category = Column(String, nullable = False, default = 'website')
+    deleted_at = Column(String, nullable = True)
 
     owner = relationship("User", back_populates = "passwords")
 

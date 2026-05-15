@@ -259,7 +259,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
         <div className="section-filters">
           <button
             className={`section-btn ${section === null ? 'active' : ''}`}
-            onClick={() => { setSection(null); setError('') }}
+            onClick={() => { setSection(null); setError(''); if (passwords.length === 0) loadPasswords() }}
           >
             All
           </button>
