@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { login, register, lookupUser, forgotPassword, resetPassword } from '../api'
+import { deriveKey } from '../vaultCrypto'
+import PasswordStrength from './PasswordStrength'
 
 function KeyIcon() {
   return (
@@ -101,19 +103,18 @@ function ResetForm({ token, onDone }) {
     <form onSubmit={handleSubmit}>
       <input
         type="password"
-        placeholder="New password (max 16 characters)"
+        placeholder="New password"
         value={newPassword}
         onChange={e => setNewPassword(e.target.value)}
-        maxLength={16}
         required
         autoFocus
       />
+      <PasswordStrength password={newPassword} />
       <input
         type="password"
         placeholder="Confirm new password"
         value={confirm}
         onChange={e => setConfirm(e.target.value)}
-        maxLength={16}
         required
       />
       {error && <p className="error">{error}</p>}
@@ -184,8 +185,8 @@ export default function AuthPage({ onLogin }) {
     setError('')
     setLoading(true)
     try {
-      const { access_token } = await login(email, password)
-      onLogin(access_token)
+      const [userData, key] = await Promise.all([login(email, password), deriveKey(password, email)])
+      onLogin(userData, key)
     } catch (err) {
       setError(err.status === 401 ? 'Invalid email or password' : err.message)
     } finally {
@@ -203,8 +204,8 @@ export default function AuthPage({ onLogin }) {
     setLoading(true)
     try {
       await register(firstName, lastName, email, password, confirm)
-      const { access_token } = await login(email, password)
-      onLogin(access_token)
+      const [userData, key] = await Promise.all([login(email, password), deriveKey(password, email)])
+      onLogin(userData, key)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -294,18 +295,17 @@ export default function AuthPage({ onLogin }) {
               />
               <input
                 type="password"
-                placeholder="Password (max 16 characters)"
+                placeholder="Password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                maxLength={16}
                 required
               />
+              <PasswordStrength password={password} />
               <input
                 type="password"
                 placeholder="Confirm password"
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
-                maxLength={16}
                 required
               />
               {error && <p className="error">{error}</p>}

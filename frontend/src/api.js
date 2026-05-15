@@ -1,27 +1,34 @@
-// Base URL of your FastAPI backend
 const BASE = 'https://passwordmanager-owfm.onrender.com'
 
-// Reusable helper — all API functions use this instead of writing fetch() every time
-async function request(path, options = {}) {
+async function request(path, options = {}, attempt = 0) {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 60000)
+    const timer = setTimeout(() => controller.abort(), 100000)
     try {
-        const res = await fetch(`${BASE}${path}`, { ...options, signal: controller.signal })
+        const res = await fetch(`${BASE}${path}`, {
+            ...options,
+            signal: controller.signal,
+            credentials: 'include',
+        })
+        clearTimeout(timer)
         const data = await res.json()
         if (res.status === 401) throw Object.assign(new Error('UNAUTHORIZED'), { status: 401 })
-        if (!res.ok) throw new Error(data.detail || 'Request failed')
+        if (res.status === 429) throw new Error('Too many attempts. Please wait a minute and try again.')
+        if (!res.ok) throw new Error(data.detail || data.error || 'Request failed')
         return data
     } catch (err) {
-        if (err.name === 'AbortError' || err.message === 'Failed to fetch') {
-            throw new Error('Unable to reach the server — it may be waking up. Please wait a moment and try again.')
+        clearTimeout(timer)
+        const isNetwork = err.name === 'AbortError' || err.message === 'Failed to fetch'
+        if (isNetwork && attempt < 2) {
+            await new Promise(r => setTimeout(r, 8000))
+            return request(path, options, attempt + 1)
+        }
+        if (isNetwork) {
+            throw new Error('Unable to reach the server. Please try refreshing the page.')
         }
         throw err
-    } finally {
-        clearTimeout(timer)
     }
 }
 
-// Calls POST /auth/register with email + password
 export function forgotPassword(email) {
     return request('/auth/forgot-password', {
         method: 'POST',
@@ -54,99 +61,74 @@ export function register(firstName, lastName, email, password, confirm) {
     })
 }
 
-// Calls POST /auth/login — backend returns { access_token, token_type }
 export function login(email, password) {
-    return request('/auth/login', {  
+    return request('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
     })
 }
 
-// Calls GET /passwords — requires the JWT token to prove who you are
-export function getPasswords(token) {
+export function logout() {
+    return request('/auth/logout', { method: 'POST' })
+}
+
+export function getPasswords() {
+    return request('/passwords')
+}
+
+export function createPassword(entry) {
     return request('/passwords', {
-        headers: { Authorization: `Bearer ${token}` },
-    })
-}
-
-// Calls POST /passwords — entry is { site, username, password }
-export function createPassword(token, entry) {
-    return request('/passwords', { 
         method: 'POST',
-        headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(entry),
-    })
-} 
-
-// Calls PUT /passwords/{id} — updates site, username, and password for an entry
-export function updatePassword(token, id, entry) {
-    return request(`/passwords/${id}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(entry),
     })
 }
 
-// Moves a password to trash (soft delete)
-export function deletePassword(token, id) {
+export function updatePassword(id, entry) {
     return request(`/passwords/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
     })
 }
 
-export function getDeletedPasswords(token) {
-    return request('/passwords/deleted', {
-        headers: { Authorization: `Bearer ${token}` },
-    })
+export function deletePassword(id) {
+    return request(`/passwords/${id}`, { method: 'DELETE' })
 }
 
-export function restorePassword(token, id) {
-    return request(`/passwords/${id}/restore`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-    })
+export function getDeletedPasswords() {
+    return request('/passwords/deleted')
 }
 
-export function permanentDeletePassword(token, id) {
-    return request(`/passwords/${id}/permanent`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-    })
+export function restorePassword(id) {
+    return request(`/passwords/${id}/restore`, { method: 'POST' })
 }
 
-export function clearAllDeleted(token) {
-    return request('/passwords/trash', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-    })
+export function permanentDeletePassword(id) {
+    return request(`/passwords/${id}/permanent`, { method: 'DELETE' })
 }
 
-export function getMe(token) {
-    return request('/me', {
-        headers: { Authorization: `Bearer ${token}` },
-    })
+export function clearAllDeleted() {
+    return request('/passwords/trash', { method: 'DELETE' })
 }
 
-export function updateMe(token, firstName, lastName) {
+export function getMe() {
+    return request('/me')
+}
+
+export function updateMe(firstName, lastName) {
     return request('/me', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ first_name: firstName, last_name: lastName }),
     })
 }
 
-export function changePassword(token, currentPassword, newPassword, confirm) {
+export function changePassword(currentPassword, newPassword, confirm) {
     return request('/me/password', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword, confirm }),
     })
 }

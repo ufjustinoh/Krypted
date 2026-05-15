@@ -24,10 +24,11 @@ class PasswordEntry(Base):
     site = Column(String, nullable = False)
     username = Column(String, nullable = False)
     encrypted_password = Column(String, nullable = False)
-    category = Column(String, nullable = False, default = 'website')
-    deleted_at = Column(String, nullable = True)
+    category = Column(String, nullable=False, default='website')
+    deleted_at = Column(String, nullable=True)
+    client_encrypted = Column(Boolean, default=False, nullable=False)
 
-    owner = relationship("User", back_populates = "passwords")
+    owner = relationship("User", back_populates="passwords")
 
 
 class PasswordHistory(Base):

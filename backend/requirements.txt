@@ -6,3 +6,4 @@ python-jose[cryptography]
 cryptography
 python-multipart
 psycopg2-binary
+slowapi

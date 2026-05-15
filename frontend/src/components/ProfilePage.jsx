@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { updateMe, changePassword } from '../api'
+import { updateMe, changePassword, getPasswords, updatePassword } from '../api'
+import { deriveKey, encryptField, decryptField } from '../vaultCrypto'
+import PasswordStrength from './PasswordStrength'
 
-export default function ProfilePage({ token, user, onUserUpdate }) {
+export default function ProfilePage({ user, vaultKey, onVaultKeyUpdate, onUserUpdate }) {
   const [firstName, setFirstName] = useState(user?.first_name || '')
   const [lastName, setLastName] = useState(user?.last_name || '')
 
@@ -11,6 +13,7 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
       setLastName(user.last_name || '')
     }
   }, [user])
+
   const [profileMsg, setProfileMsg] = useState('')
   const [profileError, setProfileError] = useState('')
   const [profileLoading, setProfileLoading] = useState(false)
@@ -28,7 +31,7 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
     setProfileError('')
     setProfileLoading(true)
     try {
-      const updated = await updateMe(token, firstName, lastName)
+      const updated = await updateMe(firstName, lastName)
       onUserUpdate(updated)
       setProfileMsg('Profile updated.')
     } catch (err) {
@@ -48,7 +51,43 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
     }
     setPasswordLoading(true)
     try {
-      await changePassword(token, currentPassword, newPassword, confirmPassword)
+      const oldKey = await deriveKey(currentPassword, user.email)
+      const newKey = await deriveKey(newPassword, user.email)
+
+      // Fetch entries and verify old key if any are client-encrypted
+      const entries = await getPasswords()
+      const firstEncrypted = entries.find(e => e.client_encrypted)
+      if (firstEncrypted) {
+        try {
+          await decryptField(oldKey, firstEncrypted.username)
+        } catch {
+          throw new Error('Current password is incorrect')
+        }
+      }
+
+      // Re-encrypt all entries with new key
+      await Promise.all(entries.map(async entry => {
+        const plainUser = entry.client_encrypted
+          ? await decryptField(oldKey, entry.username)
+          : entry.username
+        const plainPass = entry.client_encrypted
+          ? await decryptField(oldKey, entry.password)
+          : entry.password
+        return updatePassword(entry.id, {
+          site: entry.site,
+          username: await encryptField(newKey, plainUser),
+          password: await encryptField(newKey, plainPass),
+          category: entry.category,
+          client_encrypted: true,
+        })
+      }))
+
+      // Change auth password on server (also validates currentPassword)
+      await changePassword(currentPassword, newPassword, confirmPassword)
+
+      // Update session key
+      await onVaultKeyUpdate(newKey)
+
       setPasswordMsg('Password updated.')
       setCurrentPassword('')
       setNewPassword('')
@@ -115,14 +154,14 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
             />
           </div>
           <div className="profile-field">
-            <label>New password (max 16 characters)</label>
+            <label>New password</label>
             <input
               type="password"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              maxLength={16}
               required
             />
+            <PasswordStrength password={newPassword} />
           </div>
           <div className="profile-field">
             <label>Confirm new password</label>
@@ -130,14 +169,13 @@ export default function ProfilePage({ token, user, onUserUpdate }) {
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
-              maxLength={16}
               required
             />
           </div>
           {passwordError && <p className="error">{passwordError}</p>}
           {passwordMsg && <p className="success-msg">{passwordMsg}</p>}
           <button type="submit" disabled={passwordLoading}>
-            {passwordLoading ? 'Updating...' : 'Update password'}
+            {passwordLoading ? 'Re-encrypting vault...' : 'Update password'}
           </button>
         </form>
       </section>

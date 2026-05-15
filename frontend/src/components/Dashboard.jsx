@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getPasswords, createPassword, updatePassword, deletePassword, getDeletedPasswords, restorePassword, permanentDeletePassword, clearAllDeleted } from '../api'
+import { encryptField, decryptField } from '../vaultCrypto'
 import AddPasswordPage from './AddPasswordPage'
 import EditPasswordPage from './EditPasswordPage'
 import ProfilePage from './ProfilePage'
@@ -14,43 +15,25 @@ function capitalize(str) {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : str
 }
 
-export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
+export default function Dashboard({ user, vaultKey, onVaultKeyUpdate, onKeyError, onUserUpdate, onLogout }) {
   const [view, setView] = useState('vault')
   const [sidebarOpen, setSidebarOpen] = useState(true)
-
-  // the list of saved passwords fetched from the backend
   const [passwords, setPasswords] = useState([])
-
-  // true while the initial fetch is happening
   const [loading, setLoading] = useState(true)
-
-  // top-level error message (e.g. fetch failed)
+  const [wakingUp, setWakingUp] = useState(false)
   const [error, setError] = useState('')
-
-  // controls whether the add password page is visible
   const [showForm, setShowForm] = useState(false)
-
-  // the entry currently being edited, null if none
   const [editingEntry, setEditingEntry] = useState(null)
-
-  // tracks which password rows have their password visible (by id)
   const [visibleIds, setVisibleIds] = useState(new Set())
-
-  // id of the row pending delete confirmation, null if none
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
-
-  // id of the row that just had its password copied (shows "Copied!" briefly)
   const [copiedId, setCopiedId] = useState(null)
-
-  // search query for filtering the password list
   const [search, setSearch] = useState('')
-
-  // section filter: null = all, 'websites', 'wifi', 'deleted'
   const [section, setSection] = useState(null)
   const [deletedPasswords, setDeletedPasswords] = useState([])
   const [loadingDeleted, setLoadingDeleted] = useState(false)
   const [deletedError, setDeletedError] = useState('')
   const [confirmClearAll, setConfirmClearAll] = useState(false)
+  const [confirmLogout, setConfirmLogout] = useState(false)
 
   function handleApiError(err) {
     if (err.status === 401) {
@@ -60,26 +43,84 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
     }
   }
 
-  // fetch passwords once when the component first loads
+  async function decryptEntries(entries) {
+    return Promise.all(entries.map(async p => {
+      if (!p.client_encrypted) return p
+      try {
+        return {
+          ...p,
+          username: await decryptField(vaultKey, p.username),
+          password: await decryptField(vaultKey, p.password),
+        }
+      } catch {
+        throw new Error('WRONG_KEY')
+      }
+    }))
+  }
+
+  async function migrateLegacy(entries) {
+    for (const entry of entries) {
+      try {
+        const encUsername = await encryptField(vaultKey, entry.username)
+        const encPassword = await encryptField(vaultKey, entry.password)
+        await updatePassword(entry.id, {
+          site: entry.site,
+          username: encUsername,
+          password: encPassword,
+          category: entry.category,
+          client_encrypted: true,
+        })
+        setPasswords(prev => prev.map(p => p.id === entry.id ? { ...p, client_encrypted: true } : p))
+      } catch {
+        // silent fail — will retry on next load
+      }
+    }
+  }
+
   useEffect(() => {
     loadPasswords()
   }, [])
 
   async function loadPasswords() {
+    const wakeTimer = setTimeout(() => setWakingUp(true), 8000)
     try {
-      const data = await getPasswords(token)
+      const raw = await getPasswords()
+      const data = await decryptEntries(raw)
+      const legacy = data.filter(p => !p.client_encrypted)
       setPasswords(data)
+      if (legacy.length > 0) migrateLegacy(legacy)
     } catch (err) {
-      handleApiError(err)
+      if (err.message === 'WRONG_KEY') {
+        onKeyError()
+      } else {
+        handleApiError(err)
+      }
     } finally {
+      clearTimeout(wakeTimer)
+      setWakingUp(false)
       setLoading(false)
     }
   }
 
   async function handleAdd(formData) {
     try {
-      const entry = await createPassword(token, formData)
-      setPasswords(prev => [...prev, entry])
+      const encUsername = await encryptField(vaultKey, formData.username)
+      const encPassword = await encryptField(vaultKey, formData.password)
+      const created = await createPassword({
+        site: formData.site,
+        username: encUsername,
+        password: encPassword,
+        category: formData.category,
+        client_encrypted: true,
+      })
+      setPasswords(prev => [...prev, {
+        id: created.id,
+        site: created.site,
+        username: formData.username,
+        password: formData.password,
+        category: created.category,
+        client_encrypted: true,
+      }])
       setShowForm(false)
     } catch (err) {
       if (err.status === 401) onLogout()
@@ -91,11 +132,17 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
     setLoadingDeleted(true)
     setDeletedError('')
     try {
-      const data = await getDeletedPasswords(token)
+      const raw = await getDeletedPasswords()
+      const data = await decryptEntries(raw)
       setDeletedPasswords(data)
     } catch (err) {
-      if (err.status === 401) onLogout()
-      else setDeletedError(err.message)
+      if (err.message === 'WRONG_KEY') {
+        onKeyError()
+      } else if (err.status === 401) {
+        onLogout()
+      } else {
+        setDeletedError(err.message)
+      }
     } finally {
       setLoadingDeleted(false)
     }
@@ -116,7 +163,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
   async function handleDelete(id) {
     try {
-      await deletePassword(token, id)
+      await deletePassword(id)
       setPasswords(prev => prev.filter(p => p.id !== id))
       setVisibleIds(prev => { const s = new Set(prev); s.delete(id); return s })
     } catch (err) {
@@ -126,7 +173,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
   async function handleRestore(id) {
     try {
-      await restorePassword(token, id)
+      await restorePassword(id)
       const restored = deletedPasswords.find(p => p.id === id)
       setDeletedPasswords(prev => prev.filter(p => p.id !== id))
       if (restored) setPasswords(prev => [...prev, { ...restored, deleted_at: null }])
@@ -137,7 +184,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
   async function handlePermanentDelete(id) {
     try {
-      await permanentDeletePassword(token, id)
+      await permanentDeletePassword(id)
       setDeletedPasswords(prev => prev.filter(p => p.id !== id))
     } catch (err) {
       handleApiError(err)
@@ -146,7 +193,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
   async function handleClearAll() {
     try {
-      await clearAllDeleted(token)
+      await clearAllDeleted()
       setDeletedPasswords([])
       setConfirmClearAll(false)
     } catch (err) {
@@ -156,8 +203,23 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
   async function handleSave(id, formData) {
     try {
-      const updated = await updatePassword(token, id, formData)
-      setPasswords(prev => prev.map(p => p.id === id ? updated : p))
+      const encUsername = await encryptField(vaultKey, formData.username)
+      const encPassword = await encryptField(vaultKey, formData.password)
+      const updated = await updatePassword(id, {
+        site: formData.site,
+        username: encUsername,
+        password: encPassword,
+        category: formData.category,
+        client_encrypted: true,
+      })
+      setPasswords(prev => prev.map(p => p.id === id ? {
+        id: p.id,
+        site: updated.site,
+        username: formData.username,
+        password: formData.password,
+        category: updated.category,
+        client_encrypted: true,
+      } : p))
       setEditingEntry(null)
     } catch (err) {
       handleApiError(err)
@@ -171,7 +233,6 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
   }
 
   function toggleVisible(id) {
-    // add the id if it's hidden, remove it if it's already visible
     setVisibleIds(prev => {
       const s = new Set(prev)
       s.has(id) ? s.delete(id) : s.add(id)
@@ -227,7 +288,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
         </nav>
 
         <div className="sidebar-footer">
-          <button className="sidebar-item" onClick={onLogout} title="Logout">
+          <button className="sidebar-item" onClick={() => setConfirmLogout(true)} title="Logout">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             {sidebarOpen && <span>Logout</span>}
           </button>
@@ -236,7 +297,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
 
       <div className="dashboard-main">
       {view === 'profile' && (
-        <ProfilePage token={token} user={user} onUserUpdate={onUserUpdate} />
+        <ProfilePage user={user} vaultKey={vaultKey} onVaultKeyUpdate={onVaultKeyUpdate} onUserUpdate={onUserUpdate} />
       )}
       {view === 'vault' && (<>
       <header className="dashboard-header">
@@ -284,7 +345,7 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
           </button>
         </div>
 
-        {loading && <p className="muted">Loading...</p>}
+        {loading && <p className="muted">{wakingUp ? 'Waking up server, please wait...' : 'Loading...'}</p>}
         {error && section !== 'deleted' && (
           <div className="error-row">
             <p className="error">{error}</p>
@@ -292,7 +353,6 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
           </div>
         )}
 
-        {/* Recently Deleted view */}
         {section === 'deleted' && (
           <>
             {loadingDeleted && <p className="muted">Loading...</p>}
@@ -342,15 +402,16 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
           </>
         )}
 
-        {/* Normal vault view */}
         {section !== 'deleted' && (
           <>
-            {!loading && passwords.length === 0 && (
-              <p className="muted empty">No passwords saved yet. Add one above.</p>
-            )}
-
-            {!loading && passwords.length > 0 && filtered.length === 0 && (
-              <p className="muted empty">No entries match "{search}".</p>
+            {!loading && filtered.length === 0 && (
+              <p className="muted empty">
+                {section === 'wifi' && !search
+                  ? 'No Wi-Fi passwords saved yet. Add one above.'
+                  : passwords.length === 0
+                  ? 'No passwords saved yet. Add one above.'
+                  : `No entries match "${search}".`}
+              </p>
             )}
 
             {filtered.length > 0 && (
@@ -415,6 +476,19 @@ export default function Dashboard({ token, user, onUserUpdate, onLogout }) {
             <div className="modal-actions">
               <button className="btn-ghost" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
               <button className="btn-danger" onClick={() => { handleDelete(confirmDeleteId); setConfirmDeleteId(null) }}>Move to Trash</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmLogout && (
+        <div className="modal-overlay" onClick={() => setConfirmLogout(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Log out?</h2>
+            <p>Your vault will be locked and you'll need to sign in again to access your passwords.</p>
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => setConfirmLogout(false)}>Cancel</button>
+              <button className="btn-danger" onClick={onLogout}>Log out</button>
             </div>
           </div>
         </div>

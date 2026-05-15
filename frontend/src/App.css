@@ -837,6 +837,27 @@ button:disabled {
   margin: 0;
 }
 
+/* ── Password strength rules ── */
+
+.pw-rules {
+  list-style: none;
+  padding: 0;
+  margin: 2px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.pw-rule {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pw-rule-pass { color: #22c55e; }
+.pw-rule-fail { color: var(--text); opacity: 0.5; }
+
 /* ── Category toggle (Add/Edit forms) ── */
 
 .category-toggle {

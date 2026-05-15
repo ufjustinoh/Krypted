@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException, Query, status
+from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from jose import JWTError
-from fastapi.security import OAuth2PasswordBearer
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from datetime import datetime, timedelta, timezone
 import uuid
 import re
@@ -11,13 +13,14 @@ from sqlalchemy import text
 import models, schemas, auth, crypto
 from database import engine, SessionLocal
 
-models.Base.metadata.create_all(bind = engine)
+models.Base.metadata.create_all(bind=engine)
 
 with engine.connect() as conn:
     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR"))
     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR"))
     conn.execute(text("ALTER TABLE passwords ADD COLUMN IF NOT EXISTS category VARCHAR DEFAULT 'website'"))
     conn.execute(text("ALTER TABLE passwords ADD COLUMN IF NOT EXISTS deleted_at VARCHAR"))
+    conn.execute(text("ALTER TABLE passwords ADD COLUMN IF NOT EXISTS client_encrypted BOOLEAN DEFAULT FALSE"))
     conn.commit()
 
 def is_password_reused(new_password: str, user: models.User, db: Session) -> bool:
@@ -36,38 +39,42 @@ def normalize_site(site: str) -> str:
     s = s.rstrip('/')
     return s
 
-app = FastAPI()                                                     # create the app
-app.add_middleware(     
-    CORSMiddleware,                                                 # this tells backend its ok to accept requests from localhost:5172 (react app) otherwise browser would block this
-    allow_origins = [
+limiter = Limiter(key_func=get_remote_address)
+
+app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
         "http://localhost:5173",
         "https://kryptedvault.vercel.app",
     ],
-    allow_credentials = True,
-    allow_methods = ["*"],
-    allow_headers = ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl = "auth/login")       # tells FastAPI where the login endpoint is
-
-def get_db():                                                       # dependency, gets a database session for each request and closes it when its done
+def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):      # dependency, gets current logged in user from JWT token
+def get_current_user(access_token: str | None = Cookie(default=None), db: Session = Depends(get_db)):
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        payload = auth.decode_access_token(token)
-        email = payload.get("sub")                          # sub is standard JWT for the user
+        payload = auth.decode_access_token(access_token)
+        email = payload.get("sub")
         if email is None:
-            raise HTTPException(status_code = 401, detail = "Invalid token")
+            raise HTTPException(status_code=401, detail="Invalid token")
     except JWTError:
-        raise HTTPException(status_code = 401, detail = "Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid token")
     user = db.query(models.User).filter(models.User.email == email).first()
     if user is None:
-        raise HTTPException(status_code = 401, detail = "User not found")
+        raise HTTPException(status_code=401, detail="User not found")
     return user
 
 
@@ -76,7 +83,8 @@ Auth Routes
 """
 
 @app.post("/auth/register", response_model=schemas.UserResponse)
-def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def register(request: Request, user: schemas.UserCreate, db: Session = Depends(get_db)):
     if user.password != user.confirm:
         raise HTTPException(status_code=400, detail="Passwords do not match")
     existing = db.query(models.User).filter(models.User.email == user.email).first()
@@ -91,10 +99,11 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return new_user                                                                                                                                                                                       
-   
+    return new_user
+
 @app.post("/auth/forgot-password")
-def forgot_password(data: schemas.ForgotPassword, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def forgot_password(request: Request, data: schemas.ForgotPassword, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == data.email).first()
     if not user:
         return {"token": None}
@@ -128,17 +137,52 @@ def lookup_user(data: schemas.UserLookup, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == data.email).first()
     return {"first_name": user.first_name if user else None}
 
-@app.post("/auth/login", response_model=schemas.Token)
-def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()                                                                                                                       
+@app.post("/auth/login", response_model=schemas.UserResponse)
+@limiter.limit("5/minute")
+def login(request: Request, response: Response, user: schemas.UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if not db_user or not auth.verify_password(user.password, db_user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid email or password")                                                                                                                          
+        raise HTTPException(status_code=401, detail="Invalid email or password")
     token = auth.create_access_token({"sub": db_user.email})
-    return {"access_token": token, "token_type": "bearer"} 
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=86400,
+    )
+    return db_user
+
+@app.post("/auth/logout")
+def logout(response: Response):
+    response.delete_cookie(key="access_token", secure=True, samesite="none")
+    return {"message": "Logged out"}
+
 
 """
 Password Routes
 """
+
+def _serialize_entry(e):
+    if e.client_encrypted:
+        return {
+            "id": e.id,
+            "site": e.site,
+            "username": e.username,
+            "password": e.encrypted_password,
+            "category": e.category or 'website',
+            "client_encrypted": True,
+        }
+    return {
+        "id": e.id,
+        "site": e.site,
+        "username": crypto.decrypt_safe(e.username),
+        "password": crypto.decrypt_password(e.encrypted_password),
+        "category": e.category or 'website',
+        "client_encrypted": False,
+    }
+
 @app.get("/passwords", response_model=list[schemas.PasswordEntryResponse])
 def get_passwords(
     skip: int = Query(0, ge=0),
@@ -150,7 +194,7 @@ def get_passwords(
         models.PasswordEntry.user_id == current_user.id,
         models.PasswordEntry.deleted_at == None
     ).offset(skip).limit(limit).all()
-    return [{"id": e.id, "site": e.site, "username": crypto.decrypt_safe(e.username), "password": crypto.decrypt_password(e.encrypted_password), "category": e.category or 'website'} for e in entries]
+    return [_serialize_entry(e) for e in entries]
 
 @app.get("/passwords/deleted", response_model=list[schemas.PasswordEntryResponse])
 def get_deleted_passwords(
@@ -163,8 +207,8 @@ def get_deleted_passwords(
         models.PasswordEntry.user_id == current_user.id,
         models.PasswordEntry.deleted_at != None
     ).offset(skip).limit(limit).all()
-    return [{"id": e.id, "site": e.site, "username": crypto.decrypt_safe(e.username), "password": crypto.decrypt_password(e.encrypted_password), "category": e.category or 'website'} for e in entries]
-                                                                                                                                                                                                            
+    return [_serialize_entry(e) for e in entries]
+
 @app.delete("/passwords/trash")
 def clear_trash(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     db.query(models.PasswordEntry).filter(
@@ -175,25 +219,29 @@ def clear_trash(db: Session = Depends(get_db), current_user: models.User = Depen
     return {"message": "Trash cleared"}
 
 @app.post("/passwords", response_model=schemas.PasswordEntryResponse)
-def create_password(entry: schemas.PasswordEntryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):                                                            
+def create_password(entry: schemas.PasswordEntryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    stored_username = entry.username if entry.client_encrypted else crypto.encrypt_password(entry.username)
+    stored_password = entry.password if entry.client_encrypted else crypto.encrypt_password(entry.password)
     new_entry = models.PasswordEntry(
         user_id=current_user.id,
         site=normalize_site(entry.site),
-        username=crypto.encrypt_password(entry.username),
-        encrypted_password=crypto.encrypt_password(entry.password),
-        category=entry.category
-    )                                                                                                                                                                                                     
+        username=stored_username,
+        encrypted_password=stored_password,
+        category=entry.category,
+        client_encrypted=entry.client_encrypted,
+    )
     db.add(new_entry)
-    db.commit()                                                                                                                                                                                           
-    db.refresh(new_entry)                                 
+    db.commit()
+    db.refresh(new_entry)
     return {
         "id": new_entry.id,
         "site": new_entry.site,
         "username": entry.username,
         "password": entry.password,
         "category": new_entry.category,
+        "client_encrypted": new_entry.client_encrypted,
     }
-   
+
 @app.put("/passwords/{entry_id}", response_model=schemas.PasswordEntryResponse)
 def update_password(entry_id: int, entry: schemas.PasswordEntryUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     db_entry = db.query(models.PasswordEntry).filter(
@@ -203,12 +251,13 @@ def update_password(entry_id: int, entry: schemas.PasswordEntryUpdate, db: Sessi
     if not db_entry:
         raise HTTPException(status_code=404, detail="Entry not found")
     db_entry.site = normalize_site(entry.site)
-    db_entry.username = crypto.encrypt_password(entry.username)
-    db_entry.encrypted_password = crypto.encrypt_password(entry.password)
+    db_entry.username = entry.username if entry.client_encrypted else crypto.encrypt_password(entry.username)
+    db_entry.encrypted_password = entry.password if entry.client_encrypted else crypto.encrypt_password(entry.password)
     db_entry.category = entry.category
+    db_entry.client_encrypted = entry.client_encrypted
     db.commit()
     db.refresh(db_entry)
-    return {"id": db_entry.id, "site": db_entry.site, "username": entry.username, "password": entry.password, "category": db_entry.category}
+    return {"id": db_entry.id, "site": db_entry.site, "username": entry.username, "password": entry.password, "category": db_entry.category, "client_encrypted": db_entry.client_encrypted}
 
 @app.delete("/passwords/{entry_id}")
 def delete_password(entry_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -246,6 +295,7 @@ def permanent_delete_password(entry_id: int, db: Session = Depends(get_db), curr
     db.delete(entry)
     db.commit()
     return {"message": "Password permanently deleted"}
+
 
 """
 Profile Routes
